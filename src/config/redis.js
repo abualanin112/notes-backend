@@ -57,6 +57,10 @@ const getClient = async () => {
     redisClient.on('error', (err) => {
       logger.error({ err, event: 'redis.error' }, 'Redis client error');
       isReady = false;
+      if (err.message === 'Redis max retries exceeded') {
+        logger.warn({ event: 'redis.degradation' }, 'Redis max retries exceeded, nullifying client for future recovery');
+        redisClient = null;
+      }
     });
 
     redisClient.on('ready', () => {

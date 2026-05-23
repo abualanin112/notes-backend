@@ -31,6 +31,9 @@ const verifyCallback = (req, resolve, reject, requiredPermissions) => async (err
   const store = asyncLocalStorage.getStore();
   if (store) {
     store.userId = user.id;
+    if (store.logger) {
+      store.logger = store.logger.child({ userId: user.id });
+    }
   }
 
   // ── Authorization Gate ───────────────────────────────────
