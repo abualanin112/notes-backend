@@ -1,0 +1,201 @@
+// ──────────────────────────────────────────────────────────────
+// Prisma Schema — Single-Tenant Database-Driven RBAC
+// ──────────────────────────────────────────────────────────────
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearchPostgres"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ──────────────────────────────────────────────────────────────
+// Enums
+// ──────────────────────────────────────────────────────────────
+
+/// Legacy role enum retained during the RBAC migration transition.
+/// Will be removed once all users are migrated to the UserRole join table.
+enum LegacyRole {
+  user
+  moderator
+  admin
+
+  @@map("Role")
+}
+
+enum TokenType {
+  refresh
+  resetPassword
+  verifyEmail
+}
+
+// ──────────────────────────────────────────────────────────────
+// RBAC Models
+// ──────────────────────────────────────────────────────────────
+
+/// Dynamic role definition. Replaces the hardcoded LegacyRole enum.
+/// The `level` field enforces a privilege hierarchy for escalation prevention:
+/// higher values = higher privilege (e.g., Super Admin = 100, User = 10).
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique @db.VarChar(100)
+  description String?  @db.Text
+  level       Int      @default(0)
+  isSystem    Boolean  @default(false) @map("is_system")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  rolePermissions RolePermission[]
+  userRoles       UserRole[]
+
+  @@index([level])
+  @@map("rbac_roles")
+}
+
+/// Granular permission following the `action:resource:scope` convention.
+/// Examples: action="update", resource="notes", scope="own" → "update:notes:own"
+model Permission {
+  id          String  @id @default(cuid())
+  action      String  @db.VarChar(50)
+  resource    String  @db.VarChar(100)
+  scope       String  @default("any") @db.VarChar(20)
+  description String? @db.Text
+
+  rolePermissions RolePermission[]
+
+  @@unique([action, resource, scope])
+  @@map("permissions")
+}
+
+/// Junction table linking Roles to Permissions (many-to-many).
+model RolePermission {
+  id String @id @default(cuid())
+
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  roleId       String     @map("role_id")
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  permissionId String     @map("permission_id")
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+  @@map("role_permissions")
+}
+
+/// Junction table linking Users to Roles (many-to-many).
+/// Enables a single user to hold multiple roles simultaneously.
+model UserRole {
+  id         String   @id @default(cuid())
+  assignedAt DateTime @default(now()) @map("assigned_at")
+  assignedBy String?  @map("assigned_by")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String @map("user_id")
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  roleId String @map("role_id")
+
+  @@unique([userId, roleId])
+  @@index([userId])
+  @@index([roleId])
+  @@map("user_roles")
+}
+
+// ──────────────────────────────────────────────────────────────
+// Core Models
+// ──────────────────────────────────────────────────────────────
+
+model User {
+  id              String     @id @default(cuid())
+  name            String
+  email           String     @unique
+  password        String
+  role            LegacyRole @default(user) /// @deprecated Retained for migration fallback. Use UserRole relation instead.
+  isEmailVerified Boolean    @default(false) @map("is_email_verified")
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+
+  // Relations
+  tokens    Token[]
+  notes     Note[]
+  userRoles UserRole[]
+
+  @@index([createdAt])
+  @@map("users")
+}
+
+model Note {
+  id       String   @id @default(cuid())
+  title    String   @db.VarChar(200)
+  content  String   @db.Text
+  archived Boolean  @default(false)
+  tags     String[] @default([])
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relation — core business data, prevent accidental cascade
+  owner   User   @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  ownerId String @map("owner_id")
+
+  // Indexes for query patterns:
+  // - All notes queries filter by owner
+  // - Archived filter is a common secondary filter
+  @@index([ownerId])
+  @@index([ownerId, archived])
+  @@index([ownerId, archived, createdAt])
+  @@map("notes")
+}
+
+model Token {
+  id          String    @id @default(cuid())
+  token       String    @db.Text // Hashed string for security
+  type        TokenType
+  expires     DateTime
+  blacklisted Boolean   @default(false)
+  familyId    String?   @map("family_id") // Groups rotating tokens to invalidate an entire session
+  ip          String?   @db.VarChar(45)
+  userAgent   String?   @map("user_agent") @db.Text
+  lastUsedAt  DateTime? @map("last_used_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  // Relation — ephemeral data, safe to cascade
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String @map("user_id")
+
+  // Indexes for query patterns:
+  // - Lookup by id (jti) for hashed token verification
+  // - Lookup by familyId for mass revocation
+  // - Lookup by expires for efficient cron cleanup
+  // - Lookup by blacklisted for status filtering
+  @@index([familyId])
+  @@index([userId])
+  @@index([expires])
+  @@index([blacklisted])
+  @@map("tokens")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  event      String   @db.VarChar(100) // Canonical event taxonomy: e.g. "auth.login", "notes.created"
+  reqId      String?  @map("req_id") // Correlates to pino-http operational trace
+  actorId    String?  @map("actor_id") // Soft reference to User.id
+  entityType String   @map("entity_type") // Standardized PascalCase: "User", "Note"
+  entityId   String   @map("entity_id") // Soft reference to target entity
+  action     String   @db.VarChar(50) // Secondary classifier: "CREATE", "UPDATE", "DELETE", "EXECUTE"
+  metadata   Json?    // Generic payload, strictly sanitized before persistence
+  reason     String?  @db.Text
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  // Explicitly avoiding @relation foreign keys. This is an intentional architectural
+  // decision to guarantee audit logs survive the deletion or archival of parent entities.
+  @@index([actorId])
+  @@index([entityType, entityId])
+  @@index([reqId])
+  @@index([createdAt]) // For global timeline pagination
+  @@index([event, createdAt]) // For filtering events by taxonomy over time
+  @@map("audit_logs")
+}

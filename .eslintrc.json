@@ -1,0 +1,94 @@
+{
+  "env": {
+    "node": true,
+    "es2022": true
+  },
+
+  "extends": ["airbnb-base", "plugin:security/recommended-legacy", "plugin:prettier/recommended"],
+
+  "plugins": ["security", "prettier"],
+
+  "parserOptions": {
+    "ecmaVersion": 2022,
+    "sourceType": "script"
+  },
+
+  "rules": {
+    "no-console": "error",
+    "no-unused-vars": ["error", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
+    "func-names": "off",
+    "no-underscore-dangle": "off",
+    "consistent-return": "off",
+    "class-methods-use-this": "off",
+    "security/detect-buffer-noassert": "warn",
+    "security/detect-child-process": "warn",
+    "security/detect-disable-mustache-escape": "warn",
+    "security/detect-eval-with-expression": "warn",
+    "security/detect-no-csrf-before-method-override": "warn",
+    "security/detect-non-literal-fs-filename": "warn",
+    "security/detect-non-literal-regexp": "warn",
+    "security/detect-non-literal-require": "warn",
+    "security/detect-object-injection": "off",
+    "security/detect-possible-timing-attacks": "warn",
+    "security/detect-unsafe-regex": "warn"
+  },
+
+  "overrides": [
+    {
+      "files": ["bin/**/*.js"],
+      "rules": {
+        "no-console": "off",
+        "security/detect-non-literal-fs-filename": "off"
+      }
+    },
+    {
+      "files": ["vitest.config.js"],
+      "parserOptions": {
+        "ecmaVersion": 2022,
+        "sourceType": "module"
+      },
+      "env": {
+        "node": true
+      },
+      "rules": {
+        "import/no-unresolved": "off",
+        "import/no-extraneous-dependencies": "off"
+      }
+    },
+    {
+      "files": ["tests/**/*.js"],
+      "parserOptions": {
+        "ecmaVersion": 2022,
+        "sourceType": "module"
+      },
+      "plugins": ["@vitest"],
+      "extends": ["plugin:@vitest/legacy-recommended"],
+      "env": {
+        "node": true
+      },
+      "globals": {
+        "suite": "readonly",
+        "test": "readonly",
+        "describe": "readonly",
+        "it": "readonly",
+        "expect": "readonly",
+        "assert": "readonly",
+        "vi": "readonly",
+        "beforeAll": "readonly",
+        "afterAll": "readonly",
+        "beforeEach": "readonly",
+        "afterEach": "readonly"
+      },
+      "rules": {
+        "@vitest/expect-expect": "off",
+        "import/no-unresolved": "off",
+        "import/no-extraneous-dependencies": "off",
+        "no-plusplus": "off",
+        "no-new-wrappers": "off",
+        "no-restricted-syntax": "off",
+        "global-require": "off",
+        "no-await-in-loop": "off"
+      }
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Validate & Generate Prisma
+        run: |
+          npx prisma validate
+          npx prisma generate
+
+      - name: Run Lint
+        run: npm run lint
+
+      - name: Run Tests (Integration via Testcontainers)
+        # Testcontainers will automatically download the postgres image
+        # and start it during the globalSetup.js phase of vitest.
+        # globalSetup.js will also execute `prisma migrate deploy` against the container.
+        run: npm run test
