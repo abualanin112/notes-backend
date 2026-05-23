@@ -3,49 +3,63 @@ const catchAsync = require('../utils/catchAsync');
 const { authService, userService, tokenService, emailService } = require('../services');
 const { serializeUser } = require('../serializers/user.serializer');
 
-const register = catchAsync(async (req, res) => {
+const register = catchAsync(async (req, res, next) => {
   const user = await userService.createUser(req.body);
   const tokens = await tokenService.generateAuthTokens(user, undefined, null, req.ip, req.get('User-Agent'));
-  res.status(httpStatus.CREATED).send({ user: serializeUser(user), tokens });
+  res.locals.statusCode = httpStatus.CREATED;
+  res.locals.payload = { user: serializeUser(user), tokens };
+  next();
 });
 
-const login = catchAsync(async (req, res) => {
+const login = catchAsync(async (req, res, next) => {
   const { email, password } = req.body;
   const user = await authService.loginUserWithEmailAndPassword(email, password);
   const tokens = await tokenService.generateAuthTokens(user, undefined, null, req.ip, req.get('User-Agent'));
-  res.send({ user: serializeUser(user), tokens });
+  res.locals.payload = { user: serializeUser(user), tokens };
+  next();
 });
 
-const logout = catchAsync(async (req, res) => {
+const logout = catchAsync(async (req, res, next) => {
   await authService.logout(req.body.refreshToken);
-  res.status(httpStatus.NO_CONTENT).send();
+  res.locals.statusCode = httpStatus.NO_CONTENT;
+  res.locals.payload = null;
+  next();
 });
 
-const refreshTokens = catchAsync(async (req, res) => {
+const refreshTokens = catchAsync(async (req, res, next) => {
   const tokens = await authService.refreshAuth(req.body.refreshToken, req.ip, req.get('User-Agent'));
-  res.send({ ...tokens });
+  res.locals.payload = { ...tokens };
+  next();
 });
 
-const forgotPassword = catchAsync(async (req, res) => {
+const forgotPassword = catchAsync(async (req, res, next) => {
   const resetPasswordToken = await tokenService.generateResetPasswordToken(req.body.email);
   await emailService.sendResetPasswordEmail(req.body.email, resetPasswordToken);
-  res.status(httpStatus.NO_CONTENT).send();
+  res.locals.statusCode = httpStatus.NO_CONTENT;
+  res.locals.payload = null;
+  next();
 });
 
-const resetPassword = catchAsync(async (req, res) => {
+const resetPassword = catchAsync(async (req, res, next) => {
   await authService.resetPassword(req.query.token, req.body.password);
-  res.status(httpStatus.NO_CONTENT).send();
+  res.locals.statusCode = httpStatus.NO_CONTENT;
+  res.locals.payload = null;
+  next();
 });
 
-const sendVerificationEmail = catchAsync(async (req, res) => {
+const sendVerificationEmail = catchAsync(async (req, res, next) => {
   const verifyEmailToken = await tokenService.generateVerifyEmailToken(req.user);
   await emailService.sendVerificationEmail(req.user.email, verifyEmailToken);
-  res.status(httpStatus.NO_CONTENT).send();
+  res.locals.statusCode = httpStatus.NO_CONTENT;
+  res.locals.payload = null;
+  next();
 });
 
-const verifyEmail = catchAsync(async (req, res) => {
+const verifyEmail = catchAsync(async (req, res, next) => {
   await authService.verifyEmail(req.query.token);
-  res.status(httpStatus.NO_CONTENT).send();
+  res.locals.statusCode = httpStatus.NO_CONTENT;
+  res.locals.payload = null;
+  next();
 });
 
 module.exports = {

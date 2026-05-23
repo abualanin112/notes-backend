@@ -81,7 +81,7 @@ describe('Error middlewares', () => {
       expect(next).toHaveBeenCalledWith(
         expect.objectContaining({
           statusCode: httpStatus.BAD_REQUEST,
-          message: expect.stringContaining('Unique constraint validation failed'),
+          message: 'Resource already exists',
           isOperational: false,
         }),
       );
@@ -116,7 +116,12 @@ describe('Error middlewares', () => {
 
       errorHandler(error, httpMocks.createRequest(), res);
 
-      expect(sendSpy).toHaveBeenCalledWith(expect.objectContaining({ code: error.statusCode, message: error.message }));
+      expect(sendSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: false,
+          error: expect.objectContaining({ code: 'Error', message: error.message }),
+        }),
+      );
       expect(res.locals.errorMessage).toBe(error.message);
     });
 
@@ -129,7 +134,10 @@ describe('Error middlewares', () => {
       errorHandler(error, httpMocks.createRequest(), res);
 
       expect(sendSpy).toHaveBeenCalledWith(
-        expect.objectContaining({ code: error.statusCode, message: error.message, stack: error.stack }),
+        expect.objectContaining({
+          success: false,
+          error: expect.objectContaining({ code: 'Error', message: error.message, stack: error.stack }),
+        }),
       );
       config.env = process.env.NODE_ENV;
     });
@@ -144,8 +152,11 @@ describe('Error middlewares', () => {
 
       expect(sendSpy).toHaveBeenCalledWith(
         expect.objectContaining({
-          code: httpStatus.INTERNAL_SERVER_ERROR,
-          message: httpStatus[httpStatus.INTERNAL_SERVER_ERROR],
+          success: false,
+          error: expect.objectContaining({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: httpStatus[httpStatus.INTERNAL_SERVER_ERROR],
+          }),
         }),
       );
       expect(res.locals.errorMessage).toBe(error.message);
@@ -162,8 +173,11 @@ describe('Error middlewares', () => {
 
       expect(sendSpy).toHaveBeenCalledWith(
         expect.objectContaining({
-          code: error.statusCode,
-          message: error.message,
+          success: false,
+          error: expect.objectContaining({
+            code: 'Error',
+            message: error.message,
+          }),
         }),
       );
       config.env = process.env.NODE_ENV;

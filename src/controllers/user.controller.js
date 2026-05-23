@@ -3,10 +3,10 @@ const pick = require('../utils/pick');
 const ApiError = require('../utils/ApiError');
 const catchAsync = require('../utils/catchAsync');
 const { userService, authorizationService } = require('../services');
-const { serializeUser, serializeUsers } = require('../serializers/user.serializer');
+const { serializeUser } = require('../serializers/user.serializer');
 const logger = require('../config/logger');
 
-const createUser = catchAsync(async (req, res) => {
+const createUser = catchAsync(async (req, res, next) => {
   if (req.body.role !== undefined) {
     logger.warn(
       { event: 'legacy.role_field.ignored', role: req.body.role },
@@ -15,41 +15,49 @@ const createUser = catchAsync(async (req, res) => {
     delete req.body.role;
   }
   const user = await userService.createUser(req.body);
-  res.status(httpStatus.CREATED).send(serializeUser(user));
+  res.locals.statusCode = httpStatus.CREATED;
+  res.locals.payload = user;
+  res.locals.serializer = serializeUser;
+  next();
 });
 
-const getUsers = catchAsync(async (req, res) => {
+const getUsers = catchAsync(async (req, res, next) => {
   const filter = pick(req.query, ['name', 'role']);
   const options = pick(req.query, ['sortBy', 'limit', 'page']);
   const result = await userService.queryUsers(filter, options);
-
-  // Serialize the pagination results
-  result.results = serializeUsers(result.results);
-  res.send(result);
+  res.locals.payload = result;
+  res.locals.serializer = serializeUser;
+  next();
 });
 
-const getUser = catchAsync(async (req, res) => {
+const getUser = catchAsync(async (req, res, next) => {
   await authorizationService.assertCanReadUser(req.user, req.params.userId);
 
   const user = await userService.getUserById(req.params.userId);
   if (!user) {
     throw new ApiError(httpStatus.NOT_FOUND, 'User not found');
   }
-  res.send(serializeUser(user));
+  res.locals.payload = user;
+  res.locals.serializer = serializeUser;
+  next();
 });
 
-const updateUser = catchAsync(async (req, res) => {
+const updateUser = catchAsync(async (req, res, next) => {
   await authorizationService.assertCanManageUser(req.user, req.params.userId);
 
   const user = await userService.updateUserById(req.params.userId, req.body);
-  res.send(serializeUser(user));
+  res.locals.payload = user;
+  res.locals.serializer = serializeUser;
+  next();
 });
 
-const deleteUser = catchAsync(async (req, res) => {
+const deleteUser = catchAsync(async (req, res, next) => {
   await authorizationService.assertCanManageUser(req.user, req.params.userId);
 
   await userService.deleteUserById(req.params.userId);
-  res.status(httpStatus.NO_CONTENT).send();
+  res.locals.statusCode = httpStatus.NO_CONTENT;
+  res.locals.payload = null;
+  next();
 });
 
 module.exports = {

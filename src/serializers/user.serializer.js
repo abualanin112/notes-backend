@@ -7,8 +7,16 @@
  */
 const serializeUser = (user) => {
   if (!user) return null;
-  const { password: _password, ...safeUser } = user;
-  return safeUser;
+  // Explicit whitelist mapping
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    isEmailVerified: user.isEmailVerified,
+    // explicitly NOT mapping `password` or legacy `role`
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+  };
 };
 
 /**

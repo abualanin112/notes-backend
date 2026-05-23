@@ -31,19 +31,18 @@ describe('User routes', () => {
         .send(newUser)
         .expect(httpStatus.CREATED);
 
-      expect(res.body).not.toHaveProperty('password');
-      expect(res.body).toMatchObject({
+      expect(res.body.data).not.toHaveProperty('password');
+      expect(res.body.data).toMatchObject({
         id: expect.any(String),
         name: newUser.name,
         email: newUser.email,
-        role: 'user',
         isEmailVerified: false,
       });
 
-      const dbUser = await prisma.user.findUnique({ where: { id: res.body.id } });
+      const dbUser = await prisma.user.findUnique({ where: { id: res.body.data.id } });
       expect(dbUser).toBeDefined();
       expect(dbUser.password).not.toBe(newUser.password);
-      expect(dbUser).toMatchObject({ name: newUser.name, email: newUser.email, role: 'user', isEmailVerified: false });
+      expect(dbUser).toMatchObject({ name: newUser.name, email: newUser.email, isEmailVerified: false });
     });
 
     test('should ignore legacy role field in request body and create user as standard user', async () => {
@@ -56,9 +55,7 @@ describe('User routes', () => {
         .send(newUser)
         .expect(httpStatus.CREATED);
 
-      expect(res.body.role).toBe('user');
-
-      const dbUser = await prisma.user.findUnique({ where: { id: res.body.id } });
+      const dbUser = await prisma.user.findUnique({ where: { id: res.body.data.id } });
       expect(dbUser.role).toBe('user');
     });
 
@@ -138,7 +135,8 @@ describe('User routes', () => {
         .send(newUser)
         .expect(httpStatus.CREATED);
 
-      expect(res.body.role).toBe('user');
+      expect(res.body.data).toBeDefined();
+      expect(res.body.data.email).toBe(newUser.email.toLowerCase());
     });
   });
 
@@ -152,19 +150,18 @@ describe('User routes', () => {
         .send()
         .expect(httpStatus.OK);
 
-      expect(res.body).toEqual({
+      expect(res.body.data).toEqual({
         results: expect.any(Array),
         page: 1,
         limit: 10,
         totalPages: 1,
         totalResults: 3,
       });
-      expect(res.body.results).toHaveLength(3);
-      expect(res.body.results[0]).toMatchObject({
+      expect(res.body.data.results).toHaveLength(3);
+      expect(res.body.data.results[0]).toMatchObject({
         id: userOne.id,
         name: userOne.name,
         email: userOne.email,
-        role: 'user',
         isEmailVerified: userOne.isEmailVerified,
       });
     });
@@ -195,15 +192,15 @@ describe('User routes', () => {
         .send()
         .expect(httpStatus.OK);
 
-      expect(res.body).toEqual({
+      expect(res.body.data).toEqual({
         results: expect.any(Array),
         page: 1,
         limit: 10,
         totalPages: 1,
         totalResults: 1,
       });
-      expect(res.body.results).toHaveLength(1);
-      expect(res.body.results[0].id).toBe(userOne.id);
+      expect(res.body.data.results).toHaveLength(1);
+      expect(res.body.data.results[0].id).toBe(userOne.id);
     });
 
     test('should correctly apply filter on role field', async () => {
@@ -216,16 +213,16 @@ describe('User routes', () => {
         .send()
         .expect(httpStatus.OK);
 
-      expect(res.body).toEqual({
+      expect(res.body.data).toEqual({
         results: expect.any(Array),
         page: 1,
         limit: 10,
         totalPages: 1,
         totalResults: 2,
       });
-      expect(res.body.results).toHaveLength(2);
-      expect(res.body.results[0].id).toBe(userOne.id);
-      expect(res.body.results[1].id).toBe(userTwo.id);
+      expect(res.body.data.results).toHaveLength(2);
+      expect(res.body.data.results[0].id).toBe(userOne.id);
+      expect(res.body.data.results[1].id).toBe(userTwo.id);
     });
 
     test('should correctly sort the returned array if descending sort param is specified', async () => {
@@ -238,20 +235,20 @@ describe('User routes', () => {
         .send()
         .expect(httpStatus.OK);
 
-      expect(res.body).toEqual({
+      expect(res.body.data).toEqual({
         results: expect.any(Array),
         page: 1,
         limit: 10,
         totalPages: 1,
         totalResults: 3,
       });
-      expect(res.body.results).toHaveLength(3);
+      expect(res.body.data.results).toHaveLength(3);
       // PostgreSQL enums sort by declaration ordinal, NOT alphabetically.
       // Enum Role { user, moderator, admin } => user=0, moderator=1, admin=2
       // role:desc => admin(2) first, then user(0) roles by createdAt:desc
-      expect(res.body.results[0].id).toBe(admin.id);
-      expect(res.body.results[1].id).toBe(userOne.id);
-      expect(res.body.results[2].id).toBe(userTwo.id);
+      expect(res.body.data.results[0].id).toBe(admin.id);
+      expect(res.body.data.results[1].id).toBe(userOne.id);
+      expect(res.body.data.results[2].id).toBe(userTwo.id);
     });
 
     test('should correctly sort the returned array if ascending sort param is specified', async () => {
@@ -264,18 +261,18 @@ describe('User routes', () => {
         .send()
         .expect(httpStatus.OK);
 
-      expect(res.body).toEqual({
+      expect(res.body.data).toEqual({
         results: expect.any(Array),
         page: 1,
         limit: 10,
         totalPages: 1,
         totalResults: 3,
       });
-      expect(res.body.results).toHaveLength(3);
+      expect(res.body.data.results).toHaveLength(3);
       // role:asc => user(0) roles first by createdAt:desc, then admin(2) last
-      expect(res.body.results[0].id).toBe(userOne.id);
-      expect(res.body.results[1].id).toBe(userTwo.id);
-      expect(res.body.results[2].id).toBe(admin.id);
+      expect(res.body.data.results[0].id).toBe(userOne.id);
+      expect(res.body.data.results[1].id).toBe(userTwo.id);
+      expect(res.body.data.results[2].id).toBe(admin.id);
     });
 
     test('should correctly sort the returned array if multiple sorting criteria are specified', async () => {
@@ -291,21 +288,21 @@ describe('User routes', () => {
         .send()
         .expect(httpStatus.OK);
 
-      expect(res.body).toEqual({
+      expect(res.body.data).toEqual({
         results: expect.any(Array),
         page: 1,
         limit: 10,
         totalPages: 1,
         totalResults: 3,
       });
-      expect(res.body.results).toHaveLength(3);
+      expect(res.body.data.results).toHaveLength(3);
 
       // PostgreSQL enum ordinal: user=0 < moderator=1 < admin=2
       // role:desc => admin(charlie) first, then user roles sorted by name:asc (alice, bob)
       const expectedOrder = [admin, userOne, userTwo];
 
       expectedOrder.forEach((user, index) => {
-        expect(res.body.results[index].id).toBe(user.id);
+        expect(res.body.data.results[index].id).toBe(user.id);
       });
     });
 
@@ -319,16 +316,16 @@ describe('User routes', () => {
         .send()
         .expect(httpStatus.OK);
 
-      expect(res.body).toEqual({
+      expect(res.body.data).toEqual({
         results: expect.any(Array),
         page: 1,
         limit: 2,
         totalPages: 2,
         totalResults: 3,
       });
-      expect(res.body.results).toHaveLength(2);
-      expect(res.body.results[0].id).toBe(userOne.id);
-      expect(res.body.results[1].id).toBe(userTwo.id);
+      expect(res.body.data.results).toHaveLength(2);
+      expect(res.body.data.results[0].id).toBe(userOne.id);
+      expect(res.body.data.results[1].id).toBe(userTwo.id);
     });
 
     test('should return the correct page if page and limit params are specified', async () => {
@@ -341,15 +338,15 @@ describe('User routes', () => {
         .send()
         .expect(httpStatus.OK);
 
-      expect(res.body).toEqual({
+      expect(res.body.data).toEqual({
         results: expect.any(Array),
         page: 2,
         limit: 2,
         totalPages: 2,
         totalResults: 3,
       });
-      expect(res.body.results).toHaveLength(1);
-      expect(res.body.results[0].id).toBe(admin.id);
+      expect(res.body.data.results).toHaveLength(1);
+      expect(res.body.data.results[0].id).toBe(admin.id);
     });
   });
 
@@ -363,12 +360,11 @@ describe('User routes', () => {
         .send()
         .expect(httpStatus.OK);
 
-      expect(res.body).not.toHaveProperty('password');
-      expect(res.body).toMatchObject({
+      expect(res.body.data).not.toHaveProperty('password');
+      expect(res.body.data).toMatchObject({
         id: userOne.id,
         email: userOne.email,
         name: userOne.name,
-        role: 'user',
         isEmailVerified: userOne.isEmailVerified,
       });
     });
@@ -496,12 +492,11 @@ describe('User routes', () => {
         .send(updateBody)
         .expect(httpStatus.OK);
 
-      expect(res.body).not.toHaveProperty('password');
-      expect(res.body).toMatchObject({
+      expect(res.body.data).not.toHaveProperty('password');
+      expect(res.body.data).toMatchObject({
         id: userOne.id,
         name: updateBody.name,
         email: updateBody.email,
-        role: 'user',
         isEmailVerified: false,
       });
 

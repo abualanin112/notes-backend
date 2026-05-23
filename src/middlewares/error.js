@@ -13,21 +13,25 @@ const errorConverter = (err, req, res, next) => {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === 'P2002') {
         statusCode = httpStatus.BAD_REQUEST;
-        const target = error.meta && error.meta.target ? error.meta.target : [];
-        message = `Unique constraint validation failed. Duplicate value for field: [${target.join(', ')}]`;
+        message = 'Resource already exists';
+        error.name = 'RESOURCE_ALREADY_EXISTS';
       } else if (error.code === 'P2025') {
         statusCode = httpStatus.NOT_FOUND;
-        message = 'Record not found';
+        message = 'Resource not found';
+        error.name = 'RESOURCE_NOT_FOUND';
       } else if (error.code === 'P2003') {
         statusCode = httpStatus.BAD_REQUEST;
-        message = 'Foreign key constraint violation';
+        message = 'Dependency constraint violation';
+        error.name = 'CONSTRAINT_VIOLATION';
       } else {
         statusCode = httpStatus.BAD_REQUEST;
-        message = `Database query failed: ${error.message}`;
+        message = 'Invalid request payload';
+        error.name = 'BAD_REQUEST';
       }
     } else if (error instanceof Prisma.PrismaClientValidationError) {
       statusCode = httpStatus.BAD_REQUEST;
-      message = `Database validation failed: ${error.message}`;
+      message = 'Validation failed';
+      error.name = 'VALIDATION_FAILED';
     }
 
     error = new ApiError(statusCode, message, false, err.stack, err);
@@ -46,9 +50,12 @@ const errorHandler = (err, req, res, next) => {
   res.locals.errorMessage = err.message;
 
   const response = {
-    code: statusCode,
-    message,
-    ...(config.env === 'development' && { stack: err.stack }),
+    success: false,
+    error: {
+      code: statusCode === httpStatus.INTERNAL_SERVER_ERROR ? 'INTERNAL_SERVER_ERROR' : err.name || 'API_ERROR',
+      message,
+      ...(config.env === 'development' && { stack: err.stack }),
+    },
   };
 
   // Attach error to response for pino-http to auto-log with request context

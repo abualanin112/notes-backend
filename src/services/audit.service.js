@@ -2,23 +2,31 @@ const asyncLocalStorage = require('../config/als');
 const { auditRepository } = require('../repositories');
 const logger = require('../config/logger');
 
+const MAX_SERIALIZATION_DEPTH = 3;
+const MAX_ARRAY_SIZE = 50;
+const MAX_STRING_LENGTH = 2000;
 const FORBIDDEN_KEYS = new Set(['password', 'token', 'refreshtoken', 'cookie', 'authorization']);
 
 /**
  * Recursively sanitize metadata payload to prevent sensitive data leaks.
- * Enforces depth limit and string size limit.
+ * Enforces depth limit, array size limit, and string size limit.
  */
-const sanitizeMetadata = (obj, depth = 0, maxDepth = 3) => {
+const sanitizeMetadata = (obj, depth = 0, maxDepth = MAX_SERIALIZATION_DEPTH) => {
   if (depth > maxDepth) return '[MAX_DEPTH_EXCEEDED]';
   if (obj === null || obj === undefined) return obj;
   if (typeof obj !== 'object') {
-    if (typeof obj === 'string' && obj.length > 2000) {
-      return `${obj.substring(0, 2000)}...[TRUNCATED]`;
+    if (typeof obj === 'string' && obj.length > MAX_STRING_LENGTH) {
+      return `${obj.substring(0, MAX_STRING_LENGTH)}...[TRUNCATED]`;
     }
     return obj;
   }
 
   if (Array.isArray(obj)) {
+    if (obj.length > MAX_ARRAY_SIZE) {
+      const truncated = obj.slice(0, MAX_ARRAY_SIZE).map((item) => sanitizeMetadata(item, depth + 1, maxDepth));
+      truncated.push(`[TRUNCATED_${obj.length - MAX_ARRAY_SIZE}_ITEMS]`);
+      return truncated;
+    }
     return obj.map((item) => sanitizeMetadata(item, depth + 1, maxDepth));
   }
 
@@ -55,19 +63,20 @@ const logEvent = async ({ event, entityType, entityId, action, metadata = null, 
       safeMetadata = sanitizeMetadata(metadata);
     }
 
-    return await auditRepository.create(
-      {
-        event,
-        reqId,
-        actorId,
-        entityType,
-        entityId,
-        action,
-        metadata: safeMetadata,
-        reason,
-      },
-      tx,
-    );
+    // Hybrid Approach: Allow-list for top-level canonical structure
+    const canonicalPayload = {
+      event,
+      reqId,
+      actorId,
+      entityType,
+      entityId,
+      action,
+      // Deny-list for nested dynamic data inside metadata (treated as 'before' / 'after' depending on action context, or plain metadata)
+      metadata: safeMetadata,
+      reason,
+    };
+
+    return await auditRepository.create(canonicalPayload, tx);
   } catch (error) {
     logger.error({ err: error, event: 'system.audit.failure' }, 'Failed to persist audit log');
     throw error; // Bubble up so transactional boundaries can cleanly rollback

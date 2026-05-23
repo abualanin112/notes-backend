@@ -42,7 +42,7 @@ describe('Note routes', () => {
         .send(newNote)
         .expect(httpStatus.CREATED);
 
-      expect(res.body).toMatchObject({
+      expect(res.body.data).toMatchObject({
         id: expect.any(String),
         title: newNote.title,
         content: newNote.content,
@@ -51,7 +51,7 @@ describe('Note routes', () => {
         ownerId: userOne.id,
       });
 
-      const dbNote = await prisma.note.findUnique({ where: { id: res.body.id } });
+      const dbNote = await prisma.note.findUnique({ where: { id: res.body.data.id } });
       expect(dbNote).toBeDefined();
       expect(dbNote).toMatchObject({
         title: newNote.title,
@@ -98,16 +98,16 @@ describe('Note routes', () => {
         .set('Authorization', `Bearer ${userOneAccessToken}`)
         .expect(httpStatus.OK);
 
-      expect(res.body).toHaveProperty('results');
-      expect(res.body.results).toHaveLength(2);
+      expect(res.body.data).toHaveProperty('results');
+      expect(res.body.data.results).toHaveLength(2);
       const expectedFirst = noteOne.id > noteTwo.id ? noteOne : noteTwo;
       const expectedSecond = noteOne.id > noteTwo.id ? noteTwo : noteOne;
 
-      expect(res.body.results[0]).toMatchObject({
+      expect(res.body.data.results[0]).toMatchObject({
         id: expectedFirst.id,
         ownerId: userOne.id,
       });
-      expect(res.body.results[1]).toMatchObject({
+      expect(res.body.data.results[1]).toMatchObject({
         id: expectedSecond.id,
         ownerId: userOne.id,
       });
@@ -128,8 +128,8 @@ describe('Note routes', () => {
         .query({ archived: 'true' })
         .expect(httpStatus.OK);
 
-      expect(res.body.results).toHaveLength(1);
-      expect(res.body.results[0].id).toBe(archivedNote.id);
+      expect(res.body.data.results).toHaveLength(1);
+      expect(res.body.data.results[0].id).toBe(archivedNote.id);
     });
 
     test('should correctly filter notes by search term in title or content', async () => {
@@ -148,8 +148,8 @@ describe('Note routes', () => {
         .query({ search: 'Chronicles' })
         .expect(httpStatus.OK);
 
-      expect(res.body.results).toHaveLength(1);
-      expect(res.body.results[0].id).toBe(specialNote.id);
+      expect(res.body.data.results).toHaveLength(1);
+      expect(res.body.data.results[0].id).toBe(specialNote.id);
     });
 
     test('should correctly apply limit and cursor pagination', async () => {
@@ -163,18 +163,18 @@ describe('Note routes', () => {
         .query({ limit: 1 })
         .expect(httpStatus.OK);
 
-      expect(res.body.results).toHaveLength(1);
-      expect(res.body).toHaveProperty('nextCursor');
-      expect(res.body.nextCursor).toBeDefined();
+      expect(res.body.data.results).toHaveLength(1);
+      expect(res.body.data).toHaveProperty('nextCursor');
+      expect(res.body.data.nextCursor).toBeDefined();
 
       // Retrieve the next page using nextCursor
       const secondPageRes = await request(app)
         .get('/v1/notes')
         .set('Authorization', `Bearer ${userOneAccessToken}`)
-        .query({ limit: 1, cursor: res.body.nextCursor })
+        .query({ limit: 1, cursor: res.body.data.nextCursor })
         .expect(httpStatus.OK);
 
-      expect(secondPageRes.body.results).toHaveLength(1);
+      expect(secondPageRes.body.data.results).toHaveLength(1);
     });
   });
 
@@ -188,7 +188,7 @@ describe('Note routes', () => {
         .set('Authorization', `Bearer ${userOneAccessToken}`)
         .expect(httpStatus.OK);
 
-      expect(res.body).toMatchObject({
+      expect(res.body.data).toMatchObject({
         id: noteOne.id,
         title: noteOne.title,
         content: noteOne.content,
@@ -253,7 +253,7 @@ describe('Note routes', () => {
         .send(updateBody)
         .expect(httpStatus.OK);
 
-      expect(res.body).toMatchObject({
+      expect(res.body.data).toMatchObject({
         id: noteOne.id,
         title: updateBody.title,
         content: updateBody.content,

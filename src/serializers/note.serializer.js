@@ -7,9 +7,17 @@
  */
 const serializeNote = (note) => {
   if (!note) return null;
-  // Currently notes don't have sensitive fields, but this provides a stable boundary
-  // for future API evolution (e.g. omitting soft-delete flags, internal IDs)
-  return note;
+  // Explicit whitelist mapping
+  return {
+    id: note.id,
+    title: note.title,
+    content: note.content,
+    archived: note.archived,
+    tags: note.tags,
+    ownerId: note.ownerId,
+    createdAt: note.createdAt,
+    updatedAt: note.updatedAt,
+  };
 };
 
 /**

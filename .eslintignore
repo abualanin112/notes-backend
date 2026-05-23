@@ -3,3 +3,4 @@ coverage
 src/generated
 src/scripts
 prisma
+migrate-tests.js

@@ -34,24 +34,23 @@ describe('Auth routes', () => {
     test('should return 201 and successfully register user if request data is ok', async () => {
       const res = await request(app).post('/v1/auth/register').send(newUser).expect(httpStatus.CREATED);
 
-      expect(res.body.user).not.toHaveProperty('password');
-      expect(res.body.user).toMatchObject({
+      expect(res.body.data.user).not.toHaveProperty('password');
+      expect(res.body.data.user).toMatchObject({
         id: expect.any(String),
         name: newUser.name,
         email: newUser.email,
-        role: 'user',
         isEmailVerified: false,
       });
 
       const dbUser = await prisma.user.findUnique({
-        where: { id: res.body.user.id },
+        where: { id: res.body.data.user.id },
         select: { id: true, password: true, name: true, email: true, role: true, isEmailVerified: true },
       });
       expect(dbUser).toBeDefined();
       expect(dbUser.password).not.toBe(newUser.password);
-      expect(dbUser).toMatchObject({ name: newUser.name, email: newUser.email, role: 'user', isEmailVerified: false });
+      expect(dbUser).toMatchObject({ name: newUser.name, email: newUser.email, isEmailVerified: false });
 
-      expect(res.body.tokens).toEqual({
+      expect(res.body.data.tokens).toEqual({
         access: { token: expect.anything(), expires: expect.anything() },
         refresh: { token: expect.anything(), expires: expect.anything() },
       });
@@ -97,15 +96,14 @@ describe('Auth routes', () => {
 
       const res = await request(app).post('/v1/auth/login').send(loginCredentials).expect(httpStatus.OK);
 
-      expect(res.body.user).toMatchObject({
+      expect(res.body.data.user).toMatchObject({
         id: expect.any(String),
         name: userOne.name,
         email: userOne.email,
-        role: 'user',
         isEmailVerified: userOne.isEmailVerified,
       });
 
-      expect(res.body.tokens).toEqual({
+      expect(res.body.data.tokens).toEqual({
         access: { token: expect.anything(), expires: expect.anything() },
         refresh: { token: expect.anything(), expires: expect.anything() },
       });
@@ -162,7 +160,7 @@ describe('Auth routes', () => {
 
       const res = await request(app).post('/v1/auth/refresh-tokens').send({ refreshToken }).expect(httpStatus.OK);
 
-      expect(res.body).toEqual({
+      expect(res.body.data).toEqual({
         access: { token: expect.anything(), expires: expect.anything() },
         refresh: { token: expect.anything(), expires: expect.anything() },
       });
