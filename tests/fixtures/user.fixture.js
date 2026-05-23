@@ -56,16 +56,77 @@ const insertUsers = async (users) => {
       name: user.name,
       email: user.email,
       password: hashedPassword,
-      role: user.role,
+      role: user.role, // Kept for legacy fallback compatibility
       isEmailVerified: user.isEmailVerified,
       createdAt: new Date(time),
       updatedAt: new Date(time),
     });
     time -= 1000;
   }
-  await prisma.user.createMany({
-    data,
-    skipDuplicates: true,
+
+  await prisma.$transaction(async (tx) => {
+    // 1. Insert base users
+    await tx.user.createMany({
+      data,
+      skipDuplicates: true,
+    });
+
+    // 2. Ensure Wildcard & Super Admin Role
+    const wildcard = await tx.permission.upsert({
+      where: { action_resource_scope: { action: '*', resource: '*', scope: '*' } },
+      update: {},
+      create: { action: '*', resource: '*', scope: '*' },
+    });
+    const superAdminRole = await tx.role.upsert({
+      where: { name: 'super_admin' },
+      update: {},
+      create: { name: 'super_admin', level: 100 },
+    });
+    await tx.rolePermission.upsert({
+      where: { roleId_permissionId: { roleId: superAdminRole.id, permissionId: wildcard.id } },
+      update: {},
+      create: { roleId: superAdminRole.id, permissionId: wildcard.id },
+    });
+
+    // 3. Ensure Standard User Role and Permissions
+    const standardRole = await tx.role.upsert({
+      where: { name: 'standard_user' },
+      update: {},
+      create: { name: 'standard_user', level: 10 },
+    });
+
+    const userPerms = [
+      { action: 'read', resource: 'notes', scope: 'own' },
+      { action: 'create', resource: 'notes', scope: 'own' },
+      { action: 'update', resource: 'notes', scope: 'own' },
+      { action: 'delete', resource: 'notes', scope: 'own' },
+      { action: 'read', resource: 'users', scope: 'own' },
+      { action: 'update', resource: 'users', scope: 'own' },
+      { action: 'delete', resource: 'users', scope: 'own' },
+    ];
+
+    for (const p of userPerms) {
+      const perm = await tx.permission.upsert({
+        where: { action_resource_scope: { action: p.action, resource: p.resource, scope: p.scope } },
+        update: {},
+        create: { action: p.action, resource: p.resource, scope: p.scope },
+      });
+      await tx.rolePermission.upsert({
+        where: { roleId_permissionId: { roleId: standardRole.id, permissionId: perm.id } },
+        update: {},
+        create: { roleId: standardRole.id, permissionId: perm.id },
+      });
+    }
+
+    // 4. Assign Roles based on legacy property
+    for (const user of users) {
+      const targetRole = user.role === 'admin' ? superAdminRole : standardRole;
+      await tx.userRole.upsert({
+        where: { userId_roleId: { userId: user.id, roleId: targetRole.id } },
+        update: {},
+        create: { userId: user.id, roleId: targetRole.id, assignedBy: 'test-fixture' },
+      });
+    }
   });
 };
 

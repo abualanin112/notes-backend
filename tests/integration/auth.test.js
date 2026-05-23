@@ -521,11 +521,10 @@ describe('Auth routes', () => {
 
       await auth('anyRight')(req, httpMocks.createResponse(), next);
 
-      expect(next).toHaveBeenCalledWith(expect.any(ApiError));
       expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: httpStatus.FORBIDDEN, message: 'Forbidden' }));
     });
 
-    test('should call next with no errors if user does not have required rights but userId is in params', async () => {
+    test('should call next with forbidden error if user does not have required rights even if userId is in params', async () => {
       await insertUsers([userOne]);
       const req = httpMocks.createRequest({
         headers: { Authorization: `Bearer ${userOneAccessToken}` },
@@ -535,7 +534,7 @@ describe('Auth routes', () => {
 
       await auth('anyRight')(req, httpMocks.createResponse(), next);
 
-      expect(next).toHaveBeenCalledWith();
+      expect(next).toHaveBeenCalledWith(expect.objectContaining({ statusCode: httpStatus.FORBIDDEN, message: 'Forbidden' }));
     });
 
     test('should call next with no errors if user has required rights', async () => {

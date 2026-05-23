@@ -1,7 +1,7 @@
 const passport = require('passport');
 const httpStatus = require('http-status');
 const ApiError = require('../utils/ApiError');
-const { getUserPermissions, matchesPermission } = require('../services/permission.service');
+const permissionService = require('../services/permission.service');
 const asyncLocalStorage = require('../config/als');
 
 /**
@@ -40,11 +40,10 @@ const verifyCallback = (req, resolve, reject, requiredPermissions) => async (err
   }
 
   try {
-    // Single cache/DB round-trip to resolve the user's full permission set
-    const userPermissions = await getUserPermissions(user.id);
+    const userPermissions = await permissionService.getUserPermissions(user.id);
 
     // ALL required permissions must be satisfied (AND logic)
-    const hasAllRequired = requiredPermissions.every((perm) => matchesPermission(userPermissions, perm));
+    const hasAllRequired = requiredPermissions.every((perm) => permissionService.matchesPermission(userPermissions, perm));
 
     if (!hasAllRequired) {
       return reject(new ApiError(httpStatus.FORBIDDEN, 'Forbidden'));
@@ -94,3 +93,4 @@ const auth =
   };
 
 module.exports = auth;
+module.exports.verifyCallback = verifyCallback;

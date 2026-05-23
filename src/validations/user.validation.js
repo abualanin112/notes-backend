@@ -5,7 +5,7 @@ const createUser = z.object({
   body: z.object({
     email: z.string().email(),
     name: z.string(),
-    role: z.string().optional(),
+    role: z.enum(['user', 'admin']).optional(),
     password: z.string().refine(password, {
       message: 'password must be at least 8 characters and contain at least 1 letter and 1 number',
     }),
