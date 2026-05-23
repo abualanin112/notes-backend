@@ -51,12 +51,12 @@ const getUserPermissions = async (userId) => {
 
   // 3. Flatten into `action:resource:scope` strings
   const permissions = new Set();
-  for (const ur of userRoles) {
-    for (const rp of ur.role.rolePermissions) {
+  userRoles.forEach((ur) => {
+    ur.role.rolePermissions.forEach((rp) => {
       const { action, resource, scope } = rp.permission;
       permissions.add(`${action}:${resource}:${scope}`);
-    }
-  }
+    });
+  });
 
   // 4. Persist to cache
   const permArray = Array.from(permissions);
@@ -115,7 +115,7 @@ const matchesPermission = (grantedPermissions, requiredPermission) => {
  */
 const hasPermission = async (userId, permission) => {
   const permissions = await getUserPermissions(userId);
-  
+
   // Wildcard short-circuit for max performance
   if (permissions.has(WILDCARD_PERMISSION)) return true;
 

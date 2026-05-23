@@ -47,10 +47,7 @@ const assertScopedPermission = async (actor, resourceOwnerId, action, resource) 
 
   if (!isOwnResource) {
     // Cross-resource access attempt without :any scope is a potential escalation
-    logger.error(
-      { ...logContext, event: 'authz.escalation.attempted' },
-      'Suspicious privilege escalation attempt',
-    );
+    logger.error({ ...logContext, event: 'authz.escalation.attempted' }, 'Suspicious privilege escalation attempt');
     await auditService.logEvent({
       event: 'authz.escalation.attempted',
       entityType: resource,
@@ -178,10 +175,10 @@ const assertCanAssignRole = async (actor, targetRoleId) => {
 
 /**
  * Assign a role to a user.
- * 
+ *
  * Enforces escalation prevention, creates the UserRole record,
  * logs the audit event, and invalidates the user's permission cache.
- * 
+ *
  * @param {Object} actor - The user performing the assignment
  * @param {string} targetUserId - The user receiving the role
  * @param {string} roleId - The CUID of the role to assign

@@ -4,8 +4,16 @@ const ApiError = require('../utils/ApiError');
 const catchAsync = require('../utils/catchAsync');
 const { userService, authorizationService } = require('../services');
 const { serializeUser, serializeUsers } = require('../serializers/user.serializer');
+const logger = require('../config/logger');
 
 const createUser = catchAsync(async (req, res) => {
+  if (req.body.role !== undefined) {
+    logger.warn(
+      { event: 'legacy.role_field.ignored', role: req.body.role },
+      'Ignored deprecated role field in user payload',
+    );
+    delete req.body.role;
+  }
   const user = await userService.createUser(req.body);
   res.status(httpStatus.CREATED).send(serializeUser(user));
 });
