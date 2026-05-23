@@ -1,7 +1,7 @@
 const redis = require('redis');
 
 // Enforce REDIS_URL environment variable before any modules are required
-process.env.REDIS_URL = 'redis://localhost:6379';
+process.env.REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 
 // Define the mock client shape
 const mockRedisClient = {

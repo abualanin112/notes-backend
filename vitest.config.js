@@ -7,6 +7,7 @@ export default defineConfig({
     env: {
       CORS_ORIGINS: '*',
       ENABLE_BACKGROUND_WORKERS: 'false',
+      REDIS_URL: '',
     },
     restoreMocks: true,
     fileParallelism: false,
