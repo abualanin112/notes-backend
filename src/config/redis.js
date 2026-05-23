@@ -157,9 +157,16 @@ const cacheDel = async (key) => {
   memoryCache.delete(key);
 };
 
+const resetClient = () => {
+  redisClient = null;
+  isReady = false;
+  memoryCache.clear();
+};
+
 module.exports = {
   getClient,
   cacheGet,
   cacheSet,
   cacheDel,
+  resetClient,
 };

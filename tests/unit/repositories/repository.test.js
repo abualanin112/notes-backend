@@ -63,6 +63,23 @@ describe('Repositories Layer', () => {
         },
       });
     });
+
+    test('should batch delete expired tokens in a loop until none are found', async () => {
+      mockTx.token.findMany = vi
+        .fn()
+        .mockResolvedValueOnce([{ id: 't1' }, { id: 't2' }])
+        .mockResolvedValueOnce([]);
+      mockTx.token.deleteMany = vi.fn().mockResolvedValue({ count: 2 });
+
+      const result = await tokenRepository.deleteExpiredTokens(mockTx);
+
+      expect(result).toEqual({ count: 2 });
+      expect(mockTx.token.findMany).toHaveBeenCalledTimes(2);
+      expect(mockTx.token.deleteMany).toHaveBeenCalledTimes(1);
+      expect(mockTx.token.deleteMany).toHaveBeenCalledWith({
+        where: { id: { in: ['t1', 't2'] } },
+      });
+    });
   });
 
   describe('Note Repository', () => {
