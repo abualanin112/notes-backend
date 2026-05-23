@@ -33,7 +33,7 @@ const createUser = async (userBody) => {
         entityType: 'User',
         entityId: user.id,
         action: 'CREATE',
-        metadata: { email: user.email, role: user.role },
+        metadata: { email: user.email },
       },
       tx,
     );
