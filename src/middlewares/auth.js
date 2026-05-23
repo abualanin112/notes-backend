@@ -3,6 +3,7 @@ const httpStatus = require('http-status');
 const ApiError = require('../utils/ApiError');
 const permissionService = require('../services/permission.service');
 const asyncLocalStorage = require('../config/als');
+const { metrics } = require('../config/metrics');
 
 /**
  * Passport JWT verify callback factory.
@@ -49,6 +50,7 @@ const verifyCallback = (req, resolve, reject, requiredPermissions) => async (err
     const hasAllRequired = requiredPermissions.every((perm) => permissionService.matchesPermission(userPermissions, perm));
 
     if (!hasAllRequired) {
+      metrics.auth.authorizationDenied++;
       return reject(new ApiError(httpStatus.FORBIDDEN, 'Forbidden'));
     }
 

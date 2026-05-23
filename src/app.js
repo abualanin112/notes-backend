@@ -26,13 +26,19 @@ app.set('trust proxy', 1);
 // Operational Health Probes
 // ──────────────────────────────────────────────────────────────
 
+const redisConfig = require('./config/redis');
+
 // /live probe: lightweight check for process runtime
 app.get('/live', (req, res) => {
-  res.status(httpStatus.OK).send({ status: 'UP' });
+  res.status(httpStatus.OK).send({ status: 'UP', shuttingDown: global.isShuttingDown || false });
 });
 
 // /ready probe: validates database dependency connectivity under a strict 5s timeout
 app.get('/ready', async (req, res) => {
+  if (global.isShuttingDown) {
+    return res.status(httpStatus.SERVICE_UNAVAILABLE).send({ status: 'NOT_READY', error: 'Shutting down' });
+  }
+
   const timeoutPromise = new Promise((_, reject) => {
     setTimeout(() => reject(new Error('Database readiness handshake timed out')), 5000);
   });
@@ -47,6 +53,10 @@ app.get('/ready', async (req, res) => {
 
 // /health probe: reports high-level operational statistics
 app.get('/health', async (req, res) => {
+  if (global.isShuttingDown) {
+    return res.status(httpStatus.SERVICE_UNAVAILABLE).send({ status: 'SHUTTING_DOWN' });
+  }
+
   const timeoutPromise = new Promise((_, reject) => {
     setTimeout(() => reject(new Error('Database health check timed out')), 5000);
   });
@@ -58,15 +68,24 @@ app.get('/health', async (req, res) => {
     databaseStatus = 'DOWN';
   }
 
+  const isCacheDegraded = redisConfig.isDegraded();
+  const cacheStatus = isCacheDegraded ? 'DEGRADED' : 'UP';
+  
+  const overallStatus = databaseStatus === 'DOWN' ? 'DOWN' : (isCacheDegraded ? 'DEGRADED' : 'UP');
+
   const payload = {
-    status: databaseStatus === 'UP' ? 'UP' : 'DEGRADED',
+    status: overallStatus,
     uptime: process.uptime(),
     environment: config.env,
     database: databaseStatus,
+    cache: cacheStatus,
+    workers: config.enableBackgroundWorkers ? 'ENABLED' : 'DISABLED',
     timestamp: new Date().toISOString(),
   };
 
-  res.status(databaseStatus === 'UP' ? httpStatus.OK : httpStatus.SERVICE_UNAVAILABLE).send(payload);
+  // MUST return HTTP 200 for DEGRADED so orchestrators don't aggressively kill the pod
+  const statusCode = databaseStatus === 'UP' ? httpStatus.OK : httpStatus.SERVICE_UNAVAILABLE;
+  res.status(statusCode).send(payload);
 });
 
 // structured request logging and correlation

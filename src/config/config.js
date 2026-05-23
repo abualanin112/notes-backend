@@ -35,6 +35,8 @@ const envVarsSchema = z
     SMTP_PASSWORD: z.string().optional().describe('password for email server'),
     EMAIL_FROM: z.string().optional().describe('the from field in the emails sent by the app'),
     REDIS_URL: z.string().optional().describe('Redis connection URL for RBAC permission caching'),
+    SLOW_QUERY_THRESHOLD_MS: z.coerce.number().default(500).describe('Threshold in ms to log slow Prisma queries'),
+    EVENT_LOOP_LAG_THRESHOLD_MS: z.coerce.number().default(100).describe('Threshold in ms to alert on event loop lag'),
   })
   .passthrough();
 
@@ -54,6 +56,7 @@ module.exports = {
   enableBackgroundWorkers: envVars.ENABLE_BACKGROUND_WORKERS,
   prisma: {
     url: envVars.DATABASE_URL,
+    slowQueryThresholdMs: envVars.SLOW_QUERY_THRESHOLD_MS,
   },
   cors: {
     origins: envVars.CORS_ORIGINS,
@@ -78,5 +81,8 @@ module.exports = {
       },
     },
     from: envVars.EMAIL_FROM,
+  },
+  telemetry: {
+    eventLoopLagThresholdMs: envVars.EVENT_LOOP_LAG_THRESHOLD_MS,
   },
 };

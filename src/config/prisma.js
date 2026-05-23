@@ -1,6 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 const config = require('./config');
 const logger = require('./logger');
+const { metrics } = require('./metrics');
 
 // ──────────────────────────────────────────────────────────────
 // Prisma Client Dynamic Singleton Wrapper
@@ -21,7 +22,7 @@ const createClientInstance = () => {
   // If Testcontainers injected a dynamic URL in process.env, use it; otherwise fall back to config
   const activeDatabaseUrl = process.env.DATABASE_URL || config.prisma.url;
 
-  const client = new PrismaClient({
+  const baseClient = new PrismaClient({
     datasources: {
       db: {
         url: activeDatabaseUrl,
@@ -41,7 +42,7 @@ const createClientInstance = () => {
 
   // In development, bind query logging to our pino logger
   if (config.env === 'development') {
-    client.$on('query', (e) => {
+    baseClient.$on('query', (e) => {
       // SECURITY WARNING: Never log e.params as it will leak passwords and PII
       logger.debug(
         {
@@ -53,6 +54,34 @@ const createClientInstance = () => {
       );
     });
   }
+
+  // Apply extension for Slow Query Telemetry
+  const client = baseClient.$extends({
+    query: {
+      $allModels: {
+        async $allOperations({ model, operation, args, query }) {
+          const start = performance.now();
+          const result = await query(args);
+          const duration = performance.now() - start;
+
+          if (duration >= config.prisma.slowQueryThresholdMs) {
+            metrics.db.slowQueries++;
+            logger.warn(
+              {
+                event: 'db.query.slow',
+                model,
+                operation,
+                durationMs: Math.round(duration),
+              },
+              'Slow database query detected',
+            );
+          }
+
+          return result;
+        },
+      },
+    },
+  });
 
   return client;
 };

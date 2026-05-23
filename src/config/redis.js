@@ -1,6 +1,19 @@
 const { createClient } = require('redis');
+const { LRUCache } = require('lru-cache');
 const config = require('./config');
 const logger = require('./logger');
+const { metrics } = require('./metrics');
+
+// ──────────────────────────────────────────────────────────────
+// Lightweight Redis Circuit Breaker State
+// ──────────────────────────────────────────────────────────────
+const CIRCUIT_BREAKER = {
+  failures: 0,
+  maxFailures: 5,
+  isOpen: false,
+  nextTry: 0,
+  cooldownMs: 60000, // 60 seconds
+};
 
 // ──────────────────────────────────────────────────────────────
 // Redis Client Singleton with In-Memory Fallback
@@ -13,21 +26,33 @@ let redisClient = null;
 let isReady = false;
 
 /**
- * In-memory cache used as a transparent fallback when Redis is
- * unavailable or unconfigured. Entries are stored with an explicit
- * expiry timestamp to prevent unbounded memory growth.
- * @type {Map<string, { value: unknown, expiresAt: number }>}
+ * In-memory cache used as a transparent fallback.
+ * Uses lru-cache to enforce hard memory limits and automatic TTL eviction.
  */
-const memoryCache = new Map();
+const memoryCache = new LRUCache({
+  max: 1000, // maximum number of entries
+  ttl: 1000 * 60 * 5, // 5 minutes default TTL
+});
 
 /**
  * Lazily initialize and return the Redis client.
- * Returns `null` if Redis is not configured or connection fails,
- * signaling consumers to use the memory fallback.
+ * Includes Circuit Breaker logic.
  *
  * @returns {Promise<import('redis').RedisClientType | null>}
  */
 const getClient = async () => {
+  // If circuit breaker is open, check if cooldown passed (half-open)
+  if (CIRCUIT_BREAKER.isOpen) {
+    if (Date.now() > CIRCUIT_BREAKER.nextTry) {
+      // Half-open: allow one attempt
+      logger.info({ event: 'redis.circuit_breaker.half_open' }, 'Redis circuit breaker half-open. Attempting reconnect.');
+      CIRCUIT_BREAKER.isOpen = false;
+    } else {
+      // Circuit is still open, return null to force memory cache fallback
+      return null;
+    }
+  }
+
   if (redisClient && isReady) return redisClient;
 
   if (!config.redis?.url) {
@@ -42,10 +67,11 @@ const getClient = async () => {
       url: config.redis.url,
       socket: {
         reconnectStrategy: (retries) => {
+          metrics.redis.reconnects++;
           if (retries > 10) {
             logger.error(
               { event: 'redis.reconnect.exhausted', retries },
-              'Redis max reconnection attempts reached. Falling back to memory cache.',
+              'Redis max reconnection attempts reached.',
             );
             return new Error('Redis max retries exceeded');
           }
@@ -57,7 +83,17 @@ const getClient = async () => {
     redisClient.on('error', (err) => {
       logger.error({ err, event: 'redis.error' }, 'Redis client error');
       isReady = false;
+      
+      CIRCUIT_BREAKER.failures += 1;
+      if (CIRCUIT_BREAKER.failures >= CIRCUIT_BREAKER.maxFailures && !CIRCUIT_BREAKER.isOpen) {
+        CIRCUIT_BREAKER.isOpen = true;
+        CIRCUIT_BREAKER.nextTry = Date.now() + CIRCUIT_BREAKER.cooldownMs;
+        metrics.redis.degradedModeTransitions++;
+        logger.warn({ event: 'redis.circuit_breaker.open' }, 'Redis circuit breaker opened. Falling back to memory cache.');
+      }
+
       if (err.message === 'Redis max retries exceeded') {
+        metrics.redis.degradedModeTransitions++;
         logger.warn({ event: 'redis.degradation' }, 'Redis max retries exceeded, nullifying client for future recovery');
         redisClient = null;
       }
@@ -66,6 +102,9 @@ const getClient = async () => {
     redisClient.on('ready', () => {
       logger.info({ event: 'redis.ready' }, 'Redis client connected and ready');
       isReady = true;
+      // Reset circuit breaker on success
+      CIRCUIT_BREAKER.failures = 0;
+      CIRCUIT_BREAKER.isOpen = false;
     });
 
     redisClient.on('end', () => {
@@ -81,8 +120,30 @@ const getClient = async () => {
       'Failed to connect to Redis. Using in-memory cache fallback.',
     );
     redisClient = null;
+    CIRCUIT_BREAKER.failures += 1;
+    if (CIRCUIT_BREAKER.failures >= CIRCUIT_BREAKER.maxFailures) {
+      CIRCUIT_BREAKER.isOpen = true;
+      CIRCUIT_BREAKER.nextTry = Date.now() + CIRCUIT_BREAKER.cooldownMs;
+      metrics.redis.degradedModeTransitions++;
+    }
     return null;
   }
+};
+
+const disconnectClient = async () => {
+  if (redisClient) {
+    await redisClient.quit();
+    redisClient = null;
+    isReady = false;
+  }
+};
+
+/**
+ * Returns whether Redis is currently in a degraded state.
+ * Required for Health & Readiness reporting.
+ */
+const isDegraded = () => {
+  return CIRCUIT_BREAKER.isOpen || (!isReady && redisClient === null && config.redis?.url);
 };
 
 // ──────────────────────────────────────────────────────────────
@@ -100,18 +161,24 @@ const cacheGet = async (key) => {
     const client = await getClient();
     if (client) {
       const raw = await client.get(key);
-      return raw ? JSON.parse(raw) : null;
+      if (raw) {
+        metrics.cache.hits++;
+        return JSON.parse(raw);
+      }
+      metrics.cache.misses++;
+      return null;
     }
   } catch (error) {
     logger.warn({ err: error, key, event: 'cache.get.redis_error' }, 'Redis GET failed, trying memory fallback');
   }
 
   // Memory fallback
-  const entry = memoryCache.get(key);
-  if (entry && entry.expiresAt > Date.now()) {
-    return entry.value;
+  const val = memoryCache.get(key);
+  if (val) {
+    metrics.cache.hits++;
+    return val;
   }
-  memoryCache.delete(key);
+  metrics.cache.misses++;
   return null;
 };
 
@@ -135,10 +202,7 @@ const cacheSet = async (key, value, ttlSeconds = 300) => {
   }
 
   // Memory fallback
-  memoryCache.set(key, {
-    value,
-    expiresAt: Date.now() + ttlSeconds * 1000,
-  });
+  memoryCache.set(key, value, { ttl: ttlSeconds * 1000 });
 };
 
 /**
@@ -164,11 +228,16 @@ const cacheDel = async (key) => {
 const resetClient = () => {
   redisClient = null;
   isReady = false;
+  CIRCUIT_BREAKER.failures = 0;
+  CIRCUIT_BREAKER.isOpen = false;
+  CIRCUIT_BREAKER.nextTry = 0;
   memoryCache.clear();
 };
 
 module.exports = {
   getClient,
+  disconnectClient,
+  isDegraded,
   cacheGet,
   cacheSet,
   cacheDel,

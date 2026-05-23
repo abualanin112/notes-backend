@@ -11,21 +11,51 @@ const CACHE_TTL_SECONDS = 300; // 5 minutes
 const WILDCARD_PERMISSION = '*:*:*';
 
 // ──────────────────────────────────────────────────────────────
-// Permission Resolution
+// Cache Versioning & Invalidation
 // ──────────────────────────────────────────────────────────────
+
+const GLOBAL_VERSION_KEY = 'rbac:permissions:version';
+
+/**
+ * Get the current global cache version for the RBAC namespace.
+ * Defaults to 1 if not set.
+ * @returns {Promise<number>}
+ */
+const getCacheVersion = async () => {
+  const version = await cacheGet(GLOBAL_VERSION_KEY);
+  if (version) return parseInt(version, 10);
+  
+  await cacheSet(GLOBAL_VERSION_KEY, 1, 60 * 60 * 24 * 365); // 1 year
+  return 1;
+};
+
+/**
+ * Increment the global RBAC cache version.
+ * This instantly invalidates all cached permissions across the system,
+ * acting as a safety switch during RBAC schema evolution.
+ * @returns {Promise<number>}
+ */
+const bumpGlobalPermissionCacheVersion = async () => {
+  const version = await getCacheVersion();
+  const newVersion = version + 1;
+  await cacheSet(GLOBAL_VERSION_KEY, newVersion, 60 * 60 * 24 * 365);
+  logger.info({ event: 'rbac.cache.version_bumped', oldVersion: version, newVersion }, 'Global permission cache version bumped');
+  return newVersion;
+};
 
 /**
  * Resolve all permission strings for a user by traversing the RBAC graph:
  * User → UserRole → Role → RolePermission → Permission.
  *
- * Results are cached under `rbac:permissions:{userId}` with a 5-minute TTL.
+ * Results are cached under `rbac:permissions:vX:user:{userId}` with a 5-minute TTL.
  * On cache miss, performs a single Prisma query with nested includes.
  *
  * @param {string} userId - The user's CUID
  * @returns {Promise<Set<string>>} Set of `action:resource:scope` permission strings
  */
 const getUserPermissions = async (userId) => {
-  const cacheKey = `${CACHE_PREFIX}:${userId}`;
+  const version = await getCacheVersion();
+  const cacheKey = `${CACHE_PREFIX}:v${version}:user:${userId}`;
 
   // 1. Cache lookup
   const cached = await cacheGet(cacheKey);
@@ -63,7 +93,7 @@ const getUserPermissions = async (userId) => {
   await cacheSet(cacheKey, permArray, CACHE_TTL_SECONDS);
 
   logger.debug(
-    { event: 'rbac.permissions.resolved', userId, count: permArray.length },
+    { event: 'rbac.permissions.resolved', userId, count: permArray.length, cacheKey },
     'User permissions resolved from database and cached',
   );
 
@@ -151,10 +181,6 @@ const getMaxRoleLevel = async (userId) => {
   return Math.max(...userRoles.map((ur) => ur.role.level));
 };
 
-// ──────────────────────────────────────────────────────────────
-// Cache Invalidation
-// ──────────────────────────────────────────────────────────────
-
 /**
  * Invalidate the cached permissions for a specific user.
  * Call after assigning/removing a role from this user.
@@ -163,9 +189,10 @@ const getMaxRoleLevel = async (userId) => {
  * @returns {Promise<void>}
  */
 const invalidateUserPermissionCache = async (userId) => {
-  const cacheKey = `${CACHE_PREFIX}:${userId}`;
+  const version = await getCacheVersion();
+  const cacheKey = `${CACHE_PREFIX}:v${version}:user:${userId}`;
   await cacheDel(cacheKey);
-  logger.info({ event: 'rbac.cache.invalidated', userId }, 'Permission cache invalidated for user');
+  logger.info({ event: 'rbac.cache.invalidated', userId, cacheKey }, 'Permission cache invalidated for user');
 };
 
 /**
@@ -196,4 +223,5 @@ module.exports = {
   getMaxRoleLevel,
   invalidateUserPermissionCache,
   invalidateRolePermissionCache,
+  bumpGlobalPermissionCacheVersion,
 };
