@@ -14,4 +14,4 @@ _This document defines the ONE canonical authorization flow to ensure consistent
    - If the request requires an `:own` scope, the service layer queries the DB for the entity.
    - `authorization.service.js` compares the entity's `ownerId` against `req.user.id`.
 
-_(To be verified and strictly enforced during Phase 1)_
+_(Strictly enforced and fully converged as of Phase 7)_

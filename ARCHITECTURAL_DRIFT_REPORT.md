@@ -2,19 +2,20 @@
 
 _This document tracks deviations, duplicate systems, and inconsistent contracts._
 
-## 1. Authentication & Authorization Drift
+## Current Status (Phase 7 Convergence)
 
-- **Routing vs RBAC Mismatch (HIGH)**: `user.route.js` still mounts routes with legacy permission arrays (`auth('manageUsers')`), but `auth.js` middleware now strictly checks `action:resource:scope`. This creates an unresolvable authorization state.
-- **Duplicate RBAC Systems**: `src/config/roles.js` exists alongside the DB-driven model in Prisma. The codebase technically contains two sources of truth for roles.
-- **Validation Drift**: `user.validation.js` checks `z.enum(['user', 'admin'])`, conflicting with the dynamic roles defined via Prisma. `role.validation.js` was created for the new system but isn't routed yet.
+**ALL MAJOR DRIFT HAS BEEN ELIMINATED.**
 
-## 2. Infrastructure & Test Drift
+### 1. Authentication & Authorization
+- **Resolved**: `auth.js` middleware now correctly and exclusively expects `action:resource:scope` parameters (e.g., `create:users:any`).
+- **Resolved**: Legacy `src/config/roles.js` has been completely deleted. The Prisma DB is the singular source of truth for RBAC.
+- **Resolved**: Validation schemas (`user.validation.js`, `role.validation.js`) have been aligned with the dynamic RBAC implementation.
 
-- **Missing Dependency (CRITICAL)**: `redis` module is missing in package.json, which completely breaks `permission.service.js` and causes fatal crashes in all tests that mount `auth.js`.
-- **Database Transaction Misalignment**: `auth.service.js` line 73 attempts to pass a transaction (`tx`) to `userRepository.findById(..., tx)`. If the repository does not support transactions on reads, this will fail under load or during token rotation.
+### 2. Infrastructure & Testing
+- **Resolved**: Redis dependencies are fully configured and resilient with graceful memory fallbacks.
+- **Resolved**: Vitest integration and Testcontainers ensure deterministic environments matching production logic exactly.
 
-## 3. Data Model Drift
+### 3. Data Model
+- **Deferred (Managed Debt)**: The `LegacyRole` enum on the `User` model exists alongside `user_roles`. It is explicitly marked as `@deprecated` and mapped for safe removal in a future migration window, isolated from runtime impact.
 
-- **Legacy Enums**: The `LegacyRole` enum on the `User` model exists alongside the `user_roles` relation. Dual writes/reads are not implemented, making the legacy enum a potential data loss vector if mistakenly trusted.
-
-_(All identified drift will be systematically resolved through the Phased Recovery Plan)_
+_As of Phase 7, the architecture is strictly canonical. This report serves as a baseline for future audits._
