@@ -1,5 +1,5 @@
 const prisma = require('../config/prisma');
-const { cacheGet, cacheSet, cacheDel } = require('../config/redis');
+const { cacheGet, cacheSet, cacheDel, cacheIncr } = require('../config/redis');
 const logger = require('../config/logger');
 
 // ──────────────────────────────────────────────────────────────
@@ -24,7 +24,7 @@ const GLOBAL_VERSION_KEY = 'rbac:permissions:version';
 const getCacheVersion = async () => {
   const version = await cacheGet(GLOBAL_VERSION_KEY);
   if (version) return parseInt(version, 10);
-  
+
   await cacheSet(GLOBAL_VERSION_KEY, 1, 60 * 60 * 24 * 365); // 1 year
   return 1;
 };
@@ -33,13 +33,12 @@ const getCacheVersion = async () => {
  * Increment the global RBAC cache version.
  * This instantly invalidates all cached permissions across the system,
  * acting as a safety switch during RBAC schema evolution.
+ * Uses Redis INCR for atomic increments to prevent race conditions.
  * @returns {Promise<number>}
  */
 const bumpGlobalPermissionCacheVersion = async () => {
-  const version = await getCacheVersion();
-  const newVersion = version + 1;
-  await cacheSet(GLOBAL_VERSION_KEY, newVersion, 60 * 60 * 24 * 365);
-  logger.info({ event: 'rbac.cache.version_bumped', oldVersion: version, newVersion }, 'Global permission cache version bumped');
+  const newVersion = await cacheIncr(GLOBAL_VERSION_KEY);
+  logger.info({ event: 'rbac.cache.version_bumped', newVersion }, 'Global permission cache version bumped atomically');
   return newVersion;
 };
 

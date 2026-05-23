@@ -65,7 +65,7 @@ const createClientInstance = () => {
           const duration = performance.now() - start;
 
           if (duration >= config.prisma.slowQueryThresholdMs) {
-            metrics.db.slowQueries++;
+            metrics.db.slowQueries += 1;
             logger.warn(
               {
                 event: 'db.query.slow',

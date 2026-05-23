@@ -50,7 +50,7 @@ const verifyCallback = (req, resolve, reject, requiredPermissions) => async (err
     const hasAllRequired = requiredPermissions.every((perm) => permissionService.matchesPermission(userPermissions, perm));
 
     if (!hasAllRequired) {
-      metrics.auth.authorizationDenied++;
+      metrics.auth.authorizationDenied += 1;
       return reject(new ApiError(httpStatus.FORBIDDEN, 'Forbidden'));
     }
 

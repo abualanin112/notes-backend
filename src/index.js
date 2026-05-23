@@ -1,10 +1,10 @@
+const { monitorEventLoopDelay } = require('perf_hooks');
 const app = require('./app');
 const config = require('./config/config');
 const logger = require('./config/logger');
 const prisma = require('./config/prisma');
 const redisConfig = require('./config/redis');
 const { startTokenCleanupJob } = require('./workers/tokenCleanup.worker');
-const { monitorEventLoopDelay } = require('perf_hooks');
 const { startMetricsFlusher } = require('./config/metrics');
 
 let server;
@@ -41,7 +41,10 @@ const bootstrap = async () => {
     logger.info('Asserting Redis cache connectivity...');
     const redisClient = await redisConfig.getClient();
     if (!redisClient) {
-      logger.warn({ event: 'cache.redis.degraded' }, 'Redis failed to initialize at startup. Running in DEGRADED memory-cache mode.');
+      logger.warn(
+        { event: 'cache.redis.degraded' },
+        'Redis failed to initialize at startup. Running in DEGRADED memory-cache mode.',
+      );
     }
 
     // 3. Open HTTP Listener
@@ -90,7 +93,9 @@ const performShutdown = async () => {
     try {
       await Promise.race([
         Promise.all(Array.from(global.activeWorkers)),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Worker shutdown timeout')), 5000))
+        new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Worker shutdown timeout')), 5000);
+        }),
       ]);
       logger.info('All active workers completed safely');
     } catch (err) {
@@ -113,7 +118,9 @@ const performShutdown = async () => {
     // Prisma disconnect itself should have a timeout to prevent hanging
     await Promise.race([
       prisma.$disconnect(),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Prisma disconnect timeout')), 3000))
+      new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Prisma disconnect timeout')), 3000);
+      }),
     ]);
     logger.info('Prisma client disconnected');
   } catch (err) {

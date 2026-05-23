@@ -70,8 +70,13 @@ app.get('/health', async (req, res) => {
 
   const isCacheDegraded = redisConfig.isDegraded();
   const cacheStatus = isCacheDegraded ? 'DEGRADED' : 'UP';
-  
-  const overallStatus = databaseStatus === 'DOWN' ? 'DOWN' : (isCacheDegraded ? 'DEGRADED' : 'UP');
+
+  let overallStatus = 'UP';
+  if (databaseStatus === 'DOWN') {
+    overallStatus = 'DOWN';
+  } else if (isCacheDegraded) {
+    overallStatus = 'DEGRADED';
+  }
 
   const payload = {
     status: overallStatus,

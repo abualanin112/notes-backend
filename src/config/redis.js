@@ -67,12 +67,9 @@ const getClient = async () => {
       url: config.redis.url,
       socket: {
         reconnectStrategy: (retries) => {
-          metrics.redis.reconnects++;
+          metrics.redis.reconnects += 1;
           if (retries > 10) {
-            logger.error(
-              { event: 'redis.reconnect.exhausted', retries },
-              'Redis max reconnection attempts reached.',
-            );
+            logger.error({ event: 'redis.reconnect.exhausted', retries }, 'Redis max reconnection attempts reached.');
             return new Error('Redis max retries exceeded');
           }
           return Math.min(retries * 200, 5000);
@@ -83,17 +80,17 @@ const getClient = async () => {
     redisClient.on('error', (err) => {
       logger.error({ err, event: 'redis.error' }, 'Redis client error');
       isReady = false;
-      
+
       CIRCUIT_BREAKER.failures += 1;
       if (CIRCUIT_BREAKER.failures >= CIRCUIT_BREAKER.maxFailures && !CIRCUIT_BREAKER.isOpen) {
         CIRCUIT_BREAKER.isOpen = true;
         CIRCUIT_BREAKER.nextTry = Date.now() + CIRCUIT_BREAKER.cooldownMs;
-        metrics.redis.degradedModeTransitions++;
+        metrics.redis.degradedModeTransitions += 1;
         logger.warn({ event: 'redis.circuit_breaker.open' }, 'Redis circuit breaker opened. Falling back to memory cache.');
       }
 
       if (err.message === 'Redis max retries exceeded') {
-        metrics.redis.degradedModeTransitions++;
+        metrics.redis.degradedModeTransitions += 1;
         logger.warn({ event: 'redis.degradation' }, 'Redis max retries exceeded, nullifying client for future recovery');
         redisClient = null;
       }
@@ -124,7 +121,7 @@ const getClient = async () => {
     if (CIRCUIT_BREAKER.failures >= CIRCUIT_BREAKER.maxFailures) {
       CIRCUIT_BREAKER.isOpen = true;
       CIRCUIT_BREAKER.nextTry = Date.now() + CIRCUIT_BREAKER.cooldownMs;
-      metrics.redis.degradedModeTransitions++;
+      metrics.redis.degradedModeTransitions += 1;
     }
     return null;
   }
@@ -162,10 +159,10 @@ const cacheGet = async (key) => {
     if (client) {
       const raw = await client.get(key);
       if (raw) {
-        metrics.cache.hits++;
+        metrics.cache.hits += 1;
         return JSON.parse(raw);
       }
-      metrics.cache.misses++;
+      metrics.cache.misses += 1;
       return null;
     }
   } catch (error) {
@@ -175,10 +172,10 @@ const cacheGet = async (key) => {
   // Memory fallback
   const val = memoryCache.get(key);
   if (val) {
-    metrics.cache.hits++;
+    metrics.cache.hits += 1;
     return val;
   }
-  metrics.cache.misses++;
+  metrics.cache.misses += 1;
   return null;
 };
 
@@ -225,6 +222,34 @@ const cacheDel = async (key) => {
   memoryCache.delete(key);
 };
 
+/**
+ * Atomically increment a numeric value in the cache.
+ *
+ * @param {string} key - Cache key
+ * @returns {Promise<number>} The new value after incrementing
+ */
+const cacheIncr = async (key) => {
+  try {
+    const client = await getClient();
+    if (client) {
+      const newValue = await client.incr(key);
+      return newValue;
+    }
+  } catch (error) {
+    logger.warn({ err: error, key, event: 'cache.incr.redis_error' }, 'Redis INCR failed, trying memory fallback');
+  }
+
+  // Memory fallback
+  let val = memoryCache.get(key);
+  if (typeof val !== 'number') {
+    val = parseInt(val, 10);
+    if (Number.isNaN(val)) val = 0;
+  }
+  val += 1;
+  memoryCache.set(key, val, { ttl: 1000 * 60 * 60 * 24 * 365 }); // 1 year fallback TTL
+  return val;
+};
+
 const resetClient = () => {
   redisClient = null;
   isReady = false;
@@ -241,5 +266,6 @@ module.exports = {
   cacheGet,
   cacheSet,
   cacheDel,
+  cacheIncr,
   resetClient,
 };
