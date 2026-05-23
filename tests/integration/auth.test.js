@@ -102,7 +102,7 @@ describe('Auth routes', () => {
         id: expect.any(String),
         name: userOne.name,
         email: userOne.email,
-        role: userOne.role,
+        role: 'user',
         isEmailVerified: userOne.isEmailVerified,
       });
 

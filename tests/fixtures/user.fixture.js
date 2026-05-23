@@ -25,7 +25,7 @@ const userOne = {
   name: faker.name.findName(),
   email: faker.internet.email().toLowerCase(),
   password,
-  role: 'user',
+  roleName: 'standard_user',
   isEmailVerified: false,
 };
 
@@ -34,7 +34,7 @@ const userTwo = {
   name: faker.name.findName(),
   email: faker.internet.email().toLowerCase(),
   password,
-  role: 'user',
+  roleName: 'standard_user',
   isEmailVerified: false,
 };
 
@@ -43,7 +43,7 @@ const admin = {
   name: faker.name.findName(),
   email: faker.internet.email().toLowerCase(),
   password,
-  role: 'admin',
+  roleName: 'super_admin',
   isEmailVerified: false,
 };
 
@@ -56,7 +56,7 @@ const insertUsers = async (users) => {
       name: user.name,
       email: user.email,
       password: hashedPassword,
-      role: user.role, // Kept for legacy fallback compatibility
+      role: user.roleName === 'super_admin' ? 'admin' : 'user', // Kept for legacy fallback compatibility
       isEmailVerified: user.isEmailVerified,
       createdAt: new Date(time),
       updatedAt: new Date(time),
@@ -118,9 +118,9 @@ const insertUsers = async (users) => {
       });
     }
 
-    // 4. Assign Roles based on legacy property
+    // 4. Assign Roles based on roleName property
     for (const user of users) {
-      const targetRole = user.role === 'admin' ? superAdminRole : standardRole;
+      const targetRole = user.roleName === 'super_admin' ? superAdminRole : standardRole;
       await tx.userRole.upsert({
         where: { userId_roleId: { userId: user.id, roleId: targetRole.id } },
         update: {},

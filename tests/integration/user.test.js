@@ -19,7 +19,6 @@ describe('User routes', () => {
         name: faker.name.findName(),
         email: faker.internet.email().toLowerCase(),
         password: 'password1',
-        role: 'user',
       };
     });
 
@@ -37,17 +36,17 @@ describe('User routes', () => {
         id: expect.any(String),
         name: newUser.name,
         email: newUser.email,
-        role: newUser.role,
+        role: 'user',
         isEmailVerified: false,
       });
 
       const dbUser = await prisma.user.findUnique({ where: { id: res.body.id } });
       expect(dbUser).toBeDefined();
       expect(dbUser.password).not.toBe(newUser.password);
-      expect(dbUser).toMatchObject({ name: newUser.name, email: newUser.email, role: newUser.role, isEmailVerified: false });
+      expect(dbUser).toMatchObject({ name: newUser.name, email: newUser.email, role: 'user', isEmailVerified: false });
     });
 
-    test('should be able to create an admin as well', async () => {
+    test('should ignore legacy role field in request body and create user as standard user', async () => {
       await insertUsers([admin]);
       newUser.role = 'admin';
 
@@ -57,10 +56,10 @@ describe('User routes', () => {
         .send(newUser)
         .expect(httpStatus.CREATED);
 
-      expect(res.body.role).toBe('admin');
+      expect(res.body.role).toBe('user');
 
       const dbUser = await prisma.user.findUnique({ where: { id: res.body.id } });
-      expect(dbUser.role).toBe('admin');
+      expect(dbUser.role).toBe('user');
     });
 
     test('should return 401 error if access token is missing', async () => {
@@ -129,15 +128,17 @@ describe('User routes', () => {
         .expect(httpStatus.BAD_REQUEST);
     });
 
-    test('should return 400 error if role is neither user nor admin', async () => {
+    test('should ignore role field even if it is not a valid enum value and create user as standard user', async () => {
       await insertUsers([admin]);
-      newUser.role = 'invalid';
+      newUser.role = 'invalid-role-value-that-is-not-user-or-admin';
 
-      await request(app)
+      const res = await request(app)
         .post('/v1/users')
         .set('Authorization', `Bearer ${adminAccessToken}`)
         .send(newUser)
-        .expect(httpStatus.BAD_REQUEST);
+        .expect(httpStatus.CREATED);
+
+      expect(res.body.role).toBe('user');
     });
   });
 
@@ -163,7 +164,7 @@ describe('User routes', () => {
         id: userOne.id,
         name: userOne.name,
         email: userOne.email,
-        role: userOne.role,
+        role: 'user',
         isEmailVerified: userOne.isEmailVerified,
       });
     });
@@ -367,7 +368,7 @@ describe('User routes', () => {
         id: userOne.id,
         email: userOne.email,
         name: userOne.name,
-        role: userOne.role,
+        role: 'user',
         isEmailVerified: userOne.isEmailVerified,
       });
     });
