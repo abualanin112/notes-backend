@@ -8,14 +8,14 @@ const router = express.Router();
 
 router
   .route('/')
-  .post(auth(), validate(noteValidation.createNote), noteController.createNote)
-  .get(auth(), validate(noteValidation.getNotes), noteController.getNotes);
+  .post(auth('create:notes:own'), validate(noteValidation.createNote), noteController.createNote)
+  .get(auth('read:notes:own'), validate(noteValidation.getNotes), noteController.getNotes);
 
 router
   .route('/:noteId')
-  .get(auth(), validate(noteValidation.getNote), noteController.getNote)
-  .patch(auth(), validate(noteValidation.updateNote), noteController.updateNote)
-  .delete(auth(), validate(noteValidation.deleteNote), noteController.deleteNote);
+  .get(auth('read:notes:own'), validate(noteValidation.getNote), noteController.getNote)
+  .patch(auth('update:notes:own'), validate(noteValidation.updateNote), noteController.updateNote)
+  .delete(auth('delete:notes:own'), validate(noteValidation.deleteNote), noteController.deleteNote);
 
 module.exports = router;
 
