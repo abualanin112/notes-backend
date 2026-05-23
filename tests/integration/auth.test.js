@@ -14,7 +14,6 @@ const prisma = require('../../src/config/prisma');
 
 const moment = dayjs;
 
-const { roleRights } = require('../../src/config/roles');
 const { tokenTypes } = require('../../src/config/tokens');
 const { userOne, admin, insertUsers } = require('../fixtures/user.fixture');
 const { userOneAccessToken, adminAccessToken } = require('../fixtures/token.fixture');
@@ -545,7 +544,7 @@ describe('Auth routes', () => {
       });
       const next = vi.fn();
 
-      await auth(...roleRights.get('admin'))(req, httpMocks.createResponse(), next);
+      await auth('read:users:any', 'update:users:any')(req, httpMocks.createResponse(), next);
 
       expect(next).toHaveBeenCalledWith();
     });
