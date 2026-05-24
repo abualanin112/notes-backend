@@ -41,4 +41,5 @@
 - **Operational Alert Taxonomy**: All logs intended to trigger pagers must follow a strict taxonomy (`event: "system.degradation"`, `event: "db.connection.failed"`).
 
 ---
-*(Note: As of Phase 7 Architecture Convergence, all above governance rules have been strictly and completely enforced across the entire backend architecture.)*
+
+_(Note: As of Phase 7 Architecture Convergence, all above governance rules have been strictly and completely enforced across the entire backend architecture.)_

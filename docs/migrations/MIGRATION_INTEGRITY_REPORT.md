@@ -1,15 +1,17 @@
 # Migration Integrity Report
 
 ## Overview
+
 This document evaluates the database schema and migration history for stability, consistency, and leftover technical debt following the Phase 1–6 architectural convergences. The objective is to identify transitional artifacts (e.g., legacy RBAC columns) and categorize their removal safety.
 
 ---
 
 ## 🟢 SAFE TO REMOVE
 
-*Currently, no immediate database structures fall into this category. All safely removable structures (like `roles.js` abstractions) were already cleaned up from the codebase.*
+_Currently, no immediate database structures fall into this category. All safely removable structures (like `roles.js` abstractions) were already cleaned up from the codebase._
 
 **Non-DB Elements Safe to Remove:**
+
 - Scripts used purely for migration transition (e.g., `migrate-tests.js` if all migrations are finalized and committed).
 - Any remaining deprecated npm packages if not utilized by the new `pino` logger or vitest stack.
 
