@@ -29,7 +29,7 @@
       {
         "default": "disallow",
         "rules": [
-          { "from": "shared", "allow": ["shared"] },
+          { "from": "shared", "allow": ["shared", "infrastructure"] },
           { "from": "iam", "allow": ["shared", "iam", "infrastructure"] },
           { "from": "notes", "allow": ["shared", "iam", "notes", "audit", "infrastructure"] },
           { "from": "audit", "allow": ["shared", "audit", "infrastructure"] },

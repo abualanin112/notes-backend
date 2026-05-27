@@ -1,1 +1,1 @@
-module.exports = require('../modules/shared/kernel/config');
+module.exports = require('../modules/infrastructure/config/config');
