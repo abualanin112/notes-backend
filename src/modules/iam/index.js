@@ -10,6 +10,20 @@ const authRoutes = require('./routes/auth.route');
 const userRoutes = require('./routes/user.route');
 
 // TODO: IAM BOUNDARY
+
+/**
+ * Register IAM Module Routes
+ * @param {import('express').Router} router
+ * @param {Object} options
+ */
+const registerIamModule = (router, options = {}) => {
+  if (options.authLimiter) {
+    router.use('/auth', options.authLimiter);
+  }
+  router.use('/auth', authRoutes);
+  router.use('/users', userRoutes);
+};
+
 module.exports = {
   authService,
   authorizationService,
@@ -21,4 +35,5 @@ module.exports = {
   passportConfig,
   authRoutes,
   userRoutes,
+  registerIamModule,
 };

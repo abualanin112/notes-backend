@@ -1,48 +1,21 @@
 const express = require('express');
-
-// TODO: LEGACY BOUNDARY
-// This monolithic router hub will be dismantled in Phase 6.
-// Routes will be mounted directly by the App Shell (app.js) from their respective modules.
-const authRoute = require('./auth.route');
-const userRoute = require('./user.route');
+const { registerIamModule } = require('../../modules/iam');
+const { registerNotesModule } = require('../../modules/notes');
 const docsRoute = require('./docs.route');
-const noteRoute = require('./note.route');
-const config = require('../../config/config');
+const { config, rateLimiter } = require('../../modules/shared');
 
 const router = express.Router();
 
-const defaultRoutes = [
-  {
-    path: '/auth',
-    route: authRoute,
-  },
-  {
-    path: '/users',
-    route: userRoute,
-  },
-  {
-    path: '/notes',
-    route: noteRoute,
-  },
-];
-
-const devRoutes = [
-  // routes available only in development mode
-  {
-    path: '/docs',
-    route: docsRoute,
-  },
-];
-
-defaultRoutes.forEach((route) => {
-  router.use(route.path, route.route);
+// COMPOSITION ROOT: MODULE REGISTRATION POINT
+registerIamModule(router, {
+  authLimiter: config.env === 'production' ? rateLimiter.authLimiter : undefined,
 });
+registerNotesModule(router);
 
+// DEV Routes
 /* istanbul ignore next */
 if (config.env === 'development') {
-  devRoutes.forEach((route) => {
-    router.use(route.path, route.route);
-  });
+  router.use('/docs', docsRoute);
 }
 
 module.exports = router;

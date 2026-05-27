@@ -9,7 +9,7 @@ const config = require('./config/config');
 const pinoHttp = require('./config/pinoHttp');
 const asyncLocalStorage = require('./config/als');
 const { jwtStrategy } = require('./config/passport');
-const { authLimiter, apiLimiter } = require('./middlewares/rateLimiter');
+const { apiLimiter } = require('./middlewares/rateLimiter');
 const routes = require('./routes/v1');
 const { errorConverter, errorHandler } = require('./middlewares/error');
 const { serializeResponse } = require('./middlewares/response.interceptor');
@@ -130,11 +130,6 @@ app.use('/v1', apiLimiter);
 // jwt authentication
 app.use(passport.initialize());
 passport.use('jwt', jwtStrategy);
-
-// limit repeated failed requests to auth endpoints
-if (config.env === 'production') {
-  app.use('/v1/auth', authLimiter);
-}
 
 // v1 api routes
 app.use('/v1', routes);

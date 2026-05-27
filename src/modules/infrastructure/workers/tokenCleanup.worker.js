@@ -1,6 +1,6 @@
 const cron = require('node-cron');
 const crypto = require('crypto');
-const { tokenRepository } = require('../../../repositories');
+
 const { logger, als: asyncLocalStorage, metrics } = require('../../shared');
 const redisConfig = require('../cache/redis');
 
@@ -31,6 +31,8 @@ const executeWithLock = async (jobId) => {
     logger.info({ event: 'system.worker.started', jobId }, 'Starting automated token cleanup job');
 
     // Timeout wrapper - does NOT cancel prisma query but prevents worker from hanging indefinitely
+    // eslint-disable-next-line global-require
+    const { tokenRepository } = require('../../../repositories');
     const executionPromise = tokenRepository.deleteExpiredTokens();
     let timeoutId;
     const timeoutPromise = new Promise((_, reject) => {
