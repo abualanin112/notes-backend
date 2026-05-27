@@ -1,16 +1,35 @@
-/**
- * PHASE 1 EXTRACTION TARGET - SHARED KERNEL
- *
- * This file is a safe placeholder. DO NOT change existing imports yet.
- *
- * In Phase 1, the following utilities will be extracted here:
- * - logger (from src/config/logger.js)
- * - als (from src/config/als.js)
- * - ApiError (from src/utils/ApiError.js)
- * - paginate (from src/utils/paginate.js)
- * - other non-domain utilities
- */
+const logger = require('./kernel/logger');
+const als = require('./kernel/als');
+const config = require('./kernel/config');
+const ApiError = require('./kernel/ApiError');
+const catchAsync = require('./kernel/catchAsync');
+const pick = require('./kernel/pick');
+const paginate = require('./kernel/paginate');
+const paginateCursor = require('./kernel/paginateCursor');
+const password = require('./kernel/password');
+const tokens = require('./kernel/tokens');
+const metrics = require('./kernel/metrics');
+const pinoHttp = require('./kernel/pinoHttp');
+const error = require('./kernel/middleware/error');
+const rateLimiter = require('./kernel/middleware/rateLimiter');
+const validate = require('./kernel/middleware/validate');
+const responseInterceptor = require('./kernel/middleware/response.interceptor');
 
 module.exports = {
-  // TODO: Export shared kernel modules here after Phase 1 extraction
+  logger,
+  als,
+  config,
+  ApiError,
+  catchAsync,
+  pick,
+  paginate,
+  paginateCursor,
+  password,
+  tokens,
+  metrics,
+  pinoHttp,
+  error,
+  rateLimiter,
+  validate,
+  responseInterceptor,
 };

@@ -24,7 +24,7 @@
   },
 
   "rules": {
-    "boundaries/element-types": [
+    "boundaries/dependencies": [
       "warn",
       {
         "default": "disallow",
