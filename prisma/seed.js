@@ -89,7 +89,6 @@ async function main() {
       assignedBy: 'system-bootstrap',
     },
   });
-
   logger.info(`Bootstrap complete! User ${adminUser.email} is now a super_admin.`);
 }
 

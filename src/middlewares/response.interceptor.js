@@ -14,7 +14,6 @@ const serializeResponse = (req, res, next) => {
 
   // Process data through the serializer if one is provided
   let data = payload;
-
   if (serializer) {
     if (
       payload &&
