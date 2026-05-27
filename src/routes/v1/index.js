@@ -1,4 +1,8 @@
 const express = require('express');
+
+// TODO: LEGACY BOUNDARY
+// This monolithic router hub will be dismantled in Phase 6.
+// Routes will be mounted directly by the App Shell (app.js) from their respective modules.
 const authRoute = require('./auth.route');
 const userRoute = require('./user.route');
 const docsRoute = require('./docs.route');

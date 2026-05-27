@@ -6,14 +6,37 @@
 
   "extends": ["airbnb-base", "plugin:security/recommended-legacy", "plugin:prettier/recommended"],
 
-  "plugins": ["security", "prettier"],
+  "plugins": ["security", "prettier", "boundaries"],
 
   "parserOptions": {
     "ecmaVersion": 2022,
     "sourceType": "script"
   },
 
+  "settings": {
+    "boundaries/elements": [
+      { "type": "shared", "pattern": "src/modules/shared/**/*" },
+      { "type": "iam", "pattern": "src/modules/iam/**/*" },
+      { "type": "notes", "pattern": "src/modules/notes/**/*" },
+      { "type": "audit", "pattern": "src/modules/audit/**/*" },
+      { "type": "infrastructure", "pattern": "src/modules/infrastructure/**/*" }
+    ]
+  },
+
   "rules": {
+    "boundaries/element-types": [
+      "warn",
+      {
+        "default": "disallow",
+        "rules": [
+          { "from": "shared", "allow": ["shared"] },
+          { "from": "iam", "allow": ["shared", "iam", "infrastructure"] },
+          { "from": "notes", "allow": ["shared", "iam", "notes", "audit", "infrastructure"] },
+          { "from": "audit", "allow": ["shared", "audit", "infrastructure"] },
+          { "from": "infrastructure", "allow": ["shared", "infrastructure"] }
+        ]
+      }
+    ],
     "no-console": "error",
     "no-unused-vars": ["error", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
     "func-names": "off",
@@ -35,7 +58,7 @@
 
   "overrides": [
     {
-      "files": ["bin/**/*.js"],
+      "files": ["bin/**/*.js", "scripts/**/*.js"],
       "rules": {
         "no-console": "off",
         "security/detect-non-literal-fs-filename": "off"

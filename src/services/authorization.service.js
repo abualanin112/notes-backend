@@ -97,15 +97,13 @@ const assertCanManageUser = async (actor, targetUserId) => {
 };
 
 /**
- * Assert the actor can manage (update/delete) a specific note.
+ * Assert if actor can manage a note
+ * @param {Object} actor - The user attempting the action
+ * @param {string} noteOwnerId - The owner of the note
+ * @throws {ApiError} if forbidden
  *
- * - Own note  → requires `update:notes:own`
- * - Other's note → requires `update:notes:any`
- *
- * @param {Object} actor - The authenticated user
- * @param {string} noteOwnerId - The owner ID of the note
- * @returns {Promise<boolean>}
- * @throws {ApiError} 403 if access is denied
+ * // TODO: FUTURE EXTRACTION POINT
+ * // Note ownership rules will be moved to src/modules/notes/policies/note.policy.js in Phase 4.
  */
 const assertCanManageNote = async (actor, noteOwnerId) => {
   return assertScopedPermission(actor, noteOwnerId, 'update', 'notes');
