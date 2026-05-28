@@ -1,4 +1,4 @@
-const { parseSortBy, parsePopulate, paginate } = require('../../../src/utils/paginate');
+import { parseSortBy, parsePopulate, paginate } from '../../../src/modules/shared/index.js';
 
 describe('Paginate Utility', () => {
   describe('parseSortBy', () => {

@@ -7,7 +7,7 @@
  *   2. Reconnecting the Prisma proxy to the shared container
  *   3. Truncating tables between tests for data isolation
  */
-const prisma = require('../../src/config/prisma');
+import { prisma } from '../../src/modules/infrastructure/index.js';
 
 const setupTestDB = () => {
   beforeAll(async () => {
@@ -35,4 +35,4 @@ const setupTestDB = () => {
   });
 };
 
-module.exports = setupTestDB;
+export default setupTestDB;

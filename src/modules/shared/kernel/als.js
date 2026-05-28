@@ -1,10 +1,12 @@
-const { AsyncLocalStorage } = require('async_hooks');
+import { AsyncLocalStorage } from 'async_hooks';
 
-/**
- * AsyncLocalStorage instance for tracking request-scoped observability context.
- * ALLOWED: reqId, userId, logger
- * FORBIDDEN: business state, DTOs, repositories
- */
-const asyncLocalStorage = new AsyncLocalStorage();
+const ALS_SYMBOL = Symbol.for('notes-backend.shared.als.singleton');
 
-module.exports = asyncLocalStorage;
+// eslint-disable-next-line security/detect-object-injection
+if (!global[ALS_SYMBOL]) {
+  // eslint-disable-next-line security/detect-object-injection
+  global[ALS_SYMBOL] = new AsyncLocalStorage();
+}
+
+// eslint-disable-next-line security/detect-object-injection
+export const als = global[ALS_SYMBOL];

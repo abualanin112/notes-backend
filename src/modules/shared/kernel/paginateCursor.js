@@ -33,4 +33,4 @@ const paginateWithCursor = async (model, { cursor, limit, where, include }) => {
   };
 };
 
-module.exports = paginateWithCursor;
+export { paginateWithCursor as paginateCursor };

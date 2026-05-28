@@ -1,0 +1,17 @@
+{
+  "name": "shared",
+  "type": "module",
+  "dependencies": {
+    "pino": "*",
+    "@prisma/client": "*",
+    "http-status": "*",
+    "express-rate-limit": "*",
+    "zod": "*",
+    "bcryptjs": "*",
+    "pino-http": "*"
+  },
+  "exports": {
+    ".": "./index.js",
+    "./*": "./*.js"
+  }
+}

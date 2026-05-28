@@ -1,11 +1,10 @@
-const express = require('express');
-const auth = require('../middleware/auth');
-const {
-  validate,
-  rateLimiter: { refreshLimiter },
-} = require('../../shared');
-const authValidation = require('../validations/auth.validation');
-const authController = require('../controllers/auth.controller');
+import express from 'express';
+import { auth } from '../auth.middleware.js';
+import { validate, rateLimiter } from '../../shared/index.js';
+import * as authValidation from '../validations/auth.validation.js';
+import * as authController from '../controllers/auth.controller.js';
+
+const { refreshLimiter } = rateLimiter;
 
 const router = express.Router();
 
@@ -18,7 +17,7 @@ router.post('/reset-password', validate(authValidation.resetPassword), authContr
 router.post('/send-verification-email', auth(), authController.sendVerificationEmail);
 router.post('/verify-email', validate(authValidation.verifyEmail), authController.verifyEmail);
 
-module.exports = router;
+export { router as authRoutes };
 
 /**
  * @swagger

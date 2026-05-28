@@ -1,14 +1,12 @@
-const jwt = require('jsonwebtoken');
-const dayjs = require('dayjs');
-const crypto = require('crypto');
-const httpStatus = require('http-status');
-const { config } = require('../../infrastructure');
-const userService = require('./user.service');
-const tokenRepository = require('../repositories/token.repository');
-const { ApiError } = require('../../shared');
-const {
-  tokens: { tokenTypes },
-} = require('../../shared');
+import jwt from 'jsonwebtoken';
+import dayjs from 'dayjs';
+import crypto from 'crypto';
+import httpStatus from 'http-status';
+import { getUserByEmail } from './user.service.js';
+import { create as createTokenRecord, findOne as findTokenRecord } from '../repositories/token.repository.js';
+import { ApiError, tokens, config } from '../../shared/index.js';
+
+const { tokenTypes } = tokens;
 
 /**
  * Generate token
@@ -61,7 +59,7 @@ const saveToken = async (
   ip = null,
   userAgent = null,
 ) => {
-  return tokenRepository.create(
+  return createTokenRecord(
     {
       token: hashToken(token),
       userId,
@@ -85,7 +83,7 @@ const saveToken = async (
  */
 const verifyToken = async (token, type, tx) => {
   const payload = jwt.verify(token, config.jwt.secret);
-  const tokenDoc = await tokenRepository.findOne(
+  const tokenDoc = await findTokenRecord(
     {
       token: hashToken(token),
       type,
@@ -138,7 +136,7 @@ const generateAuthTokens = async (user, tx, familyId = null, ip = null, userAgen
  * @returns {Promise<string>}
  */
 const generateResetPasswordToken = async (email, tx) => {
-  const user = await userService.getUserByEmail(email);
+  const user = await getUserByEmail(email);
   if (!user) {
     throw new ApiError(httpStatus.NOT_FOUND, 'No users found with this email');
   }
@@ -161,11 +159,4 @@ const generateVerifyEmailToken = async (user, tx) => {
   return verifyEmailToken;
 };
 
-module.exports = {
-  generateToken,
-  saveToken,
-  verifyToken,
-  generateAuthTokens,
-  generateResetPasswordToken,
-  generateVerifyEmailToken,
-};
+export { generateToken, saveToken, verifyToken, generateAuthTokens, generateResetPasswordToken, generateVerifyEmailToken };

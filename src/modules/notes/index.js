@@ -1,18 +1,10 @@
-const noteService = require('./services/note.service');
-const noteRoutes = require('./routes/note.route');
-
-// TODO: NOTES DOMAIN BOUNDARY
+export * from './note.service.js';
+import { noteRoutes } from './note.route.js';
 
 /**
  * Register Notes Module Routes
  * @param {import('express').Router} router
  */
-const registerNotesModule = (router) => {
+export const registerNotesModule = (router) => {
   router.use('/notes', noteRoutes);
-};
-
-module.exports = {
-  noteService,
-  noteRoutes,
-  registerNotesModule,
 };

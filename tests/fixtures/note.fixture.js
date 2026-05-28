@@ -1,6 +1,6 @@
-const faker = require('faker');
-const prisma = require('../../src/config/prisma');
-const { userOne, userTwo } = require('./user.fixture');
+import { faker } from '@faker-js/faker';
+import { prisma } from '../../src/modules/infrastructure/index.js';
+import { userOne, userTwo } from './user.fixture.js';
 
 /**
  * Generate a compliant 25-character CUID2 format string.
@@ -69,9 +69,4 @@ const insertNotes = async (notes) => {
   });
 };
 
-module.exports = {
-  noteOne,
-  noteTwo,
-  noteThree,
-  insertNotes,
-};
+export { noteOne, noteTwo, noteThree, insertNotes };

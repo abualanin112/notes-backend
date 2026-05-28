@@ -1,21 +1,22 @@
-const logger = require('./kernel/logger');
-const als = require('./kernel/als');
-const config = require('./kernel/config');
-const ApiError = require('./kernel/ApiError');
-const catchAsync = require('./kernel/catchAsync');
-const pick = require('./kernel/pick');
-const { paginate } = require('./kernel/paginate');
-const paginateCursor = require('./kernel/paginateCursor');
-const password = require('./kernel/password');
-const tokens = require('./kernel/tokens');
-const { metrics, startMetricsFlusher } = require('./kernel/metrics');
-const pinoHttp = require('./kernel/pinoHttp');
-const error = require('./kernel/middleware/error');
-const rateLimiter = require('./kernel/middleware/rateLimiter');
-const validate = require('./kernel/middleware/validate');
-const responseInterceptor = require('./kernel/middleware/response.interceptor');
+import { logger } from './kernel/logger.js';
+import { als } from './kernel/als.js';
+import { config } from './kernel/config.js';
+import { ApiError } from './kernel/ApiError.js';
+import { catchAsync } from './kernel/catchAsync.js';
+import { pick } from './kernel/pick.js';
+import { paginate, parseSortBy, parsePopulate } from './kernel/paginate.js';
+import { paginateCursor } from './kernel/paginateCursor.js';
+import * as password from './kernel/password.js';
+import * as tokens from './kernel/tokens.js';
+import { metrics, startMetricsFlusher } from './kernel/metrics.js';
+import { pinoHttp } from './kernel/pinoHttp.js';
+import * as error from './kernel/middleware/error.js';
+import * as rateLimiter from './kernel/middleware/rateLimiter.js';
+import { validate } from './kernel/middleware/validate.js';
+import * as responseInterceptor from './kernel/middleware/response.interceptor.js';
+import * as customValidation from './kernel/custom.validation.js';
 
-module.exports = {
+export {
   logger,
   als,
   config,
@@ -23,6 +24,8 @@ module.exports = {
   catchAsync,
   pick,
   paginate,
+  parseSortBy,
+  parsePopulate,
   paginateCursor,
   password,
   tokens,
@@ -33,4 +36,5 @@ module.exports = {
   rateLimiter,
   validate,
   responseInterceptor,
+  customValidation,
 };

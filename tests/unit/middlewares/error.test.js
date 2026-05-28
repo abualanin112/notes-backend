@@ -1,9 +1,8 @@
-const httpStatus = require('http-status');
-const httpMocks = require('node-mocks-http');
-const { errorConverter, errorHandler } = require('../../../src/middlewares/error');
-const ApiError = require('../../../src/utils/ApiError');
-const config = require('../../../src/config/config');
-const logger = require('../../../src/config/logger');
+import httpStatus from 'http-status';
+import httpMocks from 'node-mocks-http';
+import { Prisma } from '@prisma/client';
+import { errorConverter, errorHandler } from '../../../src/modules/shared/kernel/middleware/error.js';
+import { ApiError, config, logger } from '../../../src/modules/shared/index.js';
 
 describe('Error middlewares', () => {
   describe('Error converter', () => {
@@ -67,7 +66,6 @@ describe('Error middlewares', () => {
     });
 
     test('should convert a Prisma P2002 error to ApiError with status 400 and preserve its message', () => {
-      const { Prisma } = require('@prisma/client');
       const error = new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
         code: 'P2002',
         clientVersion: '6.19.3',

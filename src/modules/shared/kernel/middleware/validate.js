@@ -1,6 +1,6 @@
-const httpStatus = require('http-status');
-const { ZodError } = require('zod');
-const ApiError = require('../ApiError');
+import httpStatus from 'http-status';
+import { ZodError } from 'zod';
+import { ApiError } from '../ApiError.js';
 
 const validate = (schema) => (req, res, next) => {
   try {
@@ -24,4 +24,4 @@ const validate = (schema) => (req, res, next) => {
   }
 };
 
-module.exports = validate;
+export { validate };

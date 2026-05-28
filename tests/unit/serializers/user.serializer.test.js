@@ -1,4 +1,4 @@
-const { serializeUser, serializeUsers } = require('../../../src/serializers/user.serializer');
+import { serializeUser, serializeUsers } from '../../../src/modules/iam/user.serializer.js';
 
 describe('User Serializer', () => {
   describe('serializeUser', () => {

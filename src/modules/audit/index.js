@@ -1,6 +1,1 @@
-const auditService = require('./services/audit.service');
-
-// TODO: AUDIT DOMAIN BOUNDARY
-module.exports = {
-  auditService,
-};
+export { logEvent, sanitizeMetadata } from './audit.service.js';

@@ -1,14 +1,12 @@
-const dayjs = require('dayjs');
-const config = require('../../src/config/config');
-const { tokenTypes } = require('../../src/config/tokens');
-const tokenService = require('../../src/services/token.service');
-const { userOne, admin } = require('./user.fixture');
+import dayjs from 'dayjs';
+import { config, tokens } from '../../src/modules/shared/index.js';
+import * as tokenService from '../../src/modules/iam/services/token.service.js';
+import { userOne, admin } from './user.fixture.js';
+
+const { tokenTypes } = tokens;
 
 const accessTokenExpires = dayjs().add(config.jwt.accessExpirationMinutes, 'minutes');
 const userOneAccessToken = tokenService.generateToken(userOne.id, accessTokenExpires, tokenTypes.ACCESS);
 const adminAccessToken = tokenService.generateToken(admin.id, accessTokenExpires, tokenTypes.ACCESS);
 
-module.exports = {
-  userOneAccessToken,
-  adminAccessToken,
-};
+export { userOneAccessToken, adminAccessToken };

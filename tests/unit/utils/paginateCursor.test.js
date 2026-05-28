@@ -1,4 +1,4 @@
-const paginateWithCursor = require('../../../src/utils/paginateCursor');
+import { paginateCursor as paginateWithCursor } from '../../../src/modules/shared/index.js';
 
 describe('Paginate Cursor Utility', () => {
   let mockModel;

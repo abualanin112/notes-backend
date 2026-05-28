@@ -1,20 +1,25 @@
-const express = require('express');
-const helmet = require('helmet');
-const xss = require('xss-clean');
-const compression = require('compression');
-const cors = require('cors');
-const passport = require('passport');
-const httpStatus = require('http-status');
-const config = require('./config/config');
-const pinoHttp = require('./config/pinoHttp');
-const asyncLocalStorage = require('./config/als');
-const { jwtStrategy } = require('./config/passport');
-const { apiLimiter } = require('./middlewares/rateLimiter');
-const routes = require('./routes/v1');
-const { errorConverter, errorHandler } = require('./middlewares/error');
-const { serializeResponse } = require('./middlewares/response.interceptor');
-const ApiError = require('./utils/ApiError');
-const prisma = require('./config/prisma');
+import express from 'express';
+import helmet from 'helmet';
+import compression from 'compression';
+import cors from 'cors';
+import passport from 'passport';
+import httpStatus from 'http-status';
+import {
+  config,
+  pinoHttp,
+  als as asyncLocalStorage,
+  ApiError,
+  rateLimiter,
+  error,
+  responseInterceptor,
+} from './modules/shared/index.js';
+import { v1Router } from './modules/router.js';
+import { jwtStrategy } from './modules/iam/passport.js';
+import { prisma, isRedisDegraded } from './modules/infrastructure/index.js';
+
+const { apiLimiter } = rateLimiter;
+const { errorConverter, errorHandler } = error;
+const { serializeResponse } = responseInterceptor;
 
 const app = express();
 
@@ -26,7 +31,7 @@ app.set('trust proxy', 1);
 // Operational Health Probes
 // ──────────────────────────────────────────────────────────────
 
-const redisConfig = require('./config/redis');
+// ──────────────────────────────────────────────────────────────
 
 // /live probe: lightweight check for process runtime
 app.get('/live', (req, res) => {
@@ -46,8 +51,8 @@ app.get('/ready', async (req, res) => {
   try {
     await Promise.race([prisma.$queryRaw`SELECT 1`, timeoutPromise]);
     res.status(httpStatus.OK).send({ status: 'READY' });
-  } catch (error) {
-    res.status(httpStatus.SERVICE_UNAVAILABLE).send({ status: 'NOT_READY', error: error.message });
+  } catch (err) {
+    res.status(httpStatus.SERVICE_UNAVAILABLE).send({ status: 'NOT_READY', error: err.message });
   }
 });
 
@@ -64,11 +69,11 @@ app.get('/health', async (req, res) => {
   let databaseStatus = 'UP';
   try {
     await Promise.race([prisma.$queryRaw`SELECT 1`, timeoutPromise]);
-  } catch (error) {
+  } catch {
     databaseStatus = 'DOWN';
   }
 
-  const isCacheDegraded = redisConfig.isDegraded();
+  const isCacheDegraded = isRedisDegraded();
   const cacheStatus = isCacheDegraded ? 'DEGRADED' : 'UP';
 
   let overallStatus = 'UP';
@@ -114,9 +119,6 @@ app.use(express.json());
 // parse urlencoded request body
 app.use(express.urlencoded({ extended: true }));
 
-// sanitize request data
-app.use(xss());
-
 // gzip compression
 app.use(compression());
 
@@ -131,8 +133,8 @@ app.use('/v1', apiLimiter);
 app.use(passport.initialize());
 passport.use('jwt', jwtStrategy);
 
-// v1 api routes
-app.use('/v1', routes);
+// mount unified v1 router
+app.use('/v1', v1Router);
 
 // apply canonical response serialization pipeline
 app.use(serializeResponse);
@@ -148,4 +150,4 @@ app.use(errorConverter);
 // handle error
 app.use(errorHandler);
 
-module.exports = app;
+export { app };

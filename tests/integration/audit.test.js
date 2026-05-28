@@ -1,7 +1,7 @@
-const { runInTransaction } = require('../../src/repositories');
-const auditService = require('../../src/services/audit.service');
-const setupTestDB = require('../utils/setupTestDB');
-const als = require('../../src/config/als');
+import { runInTransaction, prisma } from '../../src/modules/infrastructure/index.js';
+import { logEvent } from '../../src/modules/audit/index.js';
+import { als } from '../../src/modules/shared/index.js';
+import setupTestDB from '../utils/setupTestDB.js';
 
 setupTestDB();
 
@@ -23,7 +23,7 @@ describe('Audit Infrastructure Integration', () => {
         },
       };
 
-      const auditLog = await auditService.logEvent(payload);
+      const auditLog = await logEvent(payload);
 
       expect(auditLog).toBeDefined();
       expect(auditLog.event).toBe('auth.login');
@@ -41,7 +41,7 @@ describe('Audit Infrastructure Integration', () => {
       try {
         await runInTransaction(async (tx) => {
           // Write an audit log successfully inside the transaction
-          await auditService.logEvent(
+          await logEvent(
             {
               event: 'users.updated',
               entityType: 'User',
@@ -60,7 +60,7 @@ describe('Audit Infrastructure Integration', () => {
       expect(capturedError.message).toBe('Business logic failed constraints!');
 
       // Assert that the transaction cleanly rolled back the audit record
-      const prisma = require('../../src/config/prisma');
+
       const count = await prisma.auditLog.count();
 
       expect(count).toBe(0); // Proves transactional isolation is perfect
@@ -75,7 +75,7 @@ describe('Audit Infrastructure Integration', () => {
       };
 
       await als.run(store, async () => {
-        const auditLog = await auditService.logEvent({
+        const auditLog = await logEvent({
           event: 'notes.created',
           entityType: 'Note',
           entityId: 'note123',

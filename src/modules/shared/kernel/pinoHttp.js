@@ -1,6 +1,6 @@
-const pinoHttp = require('pino-http');
-const crypto = require('crypto');
-const { baseLogger } = require('./logger');
+import pinoHttp from 'pino-http';
+import crypto from 'crypto';
+import { baseLogger } from './logger.js';
 
 const pinoMiddleware = pinoHttp({
   logger: baseLogger,
@@ -42,4 +42,4 @@ const pinoMiddleware = pinoHttp({
   },
 });
 
-module.exports = pinoMiddleware;
+export { pinoMiddleware as pinoHttp };

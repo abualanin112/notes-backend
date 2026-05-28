@@ -1,5 +1,7 @@
-const { z } = require('zod');
-const { password, cuid2Schema } = require('./custom.validation');
+import { z } from 'zod';
+import { customValidation } from '../../shared/index.js';
+
+const { password, cuid2Schema } = customValidation;
 
 const createUser = z.object({
   body: z.object({
@@ -55,10 +57,4 @@ const deleteUser = z.object({
   }),
 });
 
-module.exports = {
-  createUser,
-  getUsers,
-  getUser,
-  updateUser,
-  deleteUser,
-};
+export { createUser, getUsers, getUser, updateUser, deleteUser };

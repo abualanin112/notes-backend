@@ -1,12 +1,22 @@
-const httpStatus = require('http-status');
-const { userRepository, noteRepository, runInTransaction } = require('../../../repositories');
+import httpStatus from 'http-status';
+import {
+  isEmailTaken,
+  create as createUserRecord,
+  paginateUsers as paginateUserRecords,
+  findById,
+  findByEmail as findUserByEmailRecord,
+  updateById as updateUserByIdRecord,
+  deleteById as deleteUserByIdRecord,
+} from '../repositories/user.repository.js';
+import { runInTransaction } from '../../infrastructure/index.js';
 // TODO: HIGH-RISK AUTHORIZATION COUPLING
-const { ApiError } = require('../../shared');
-const {
-  password: { hashPassword },
-} = require('../../shared');
-const { logger } = require('../../shared');
-const auditService = require('../../../services/audit.service');
+import { ApiError, password, logger } from '../../shared/index.js';
+import { logEvent } from '../../audit/index.js';
+
+const { hashPassword } = password;
+
+const userDeletionHooks = [];
+const registerUserDeletionHook = (hook) => userDeletionHooks.push(hook);
 
 /**
  * Create a user
@@ -17,12 +27,12 @@ const createUser = async (userBody) => {
   // Hash password explicitly before saving
   const hashedPassword = await hashPassword(userBody.password);
 
-  if (await userRepository.isEmailTaken(userBody.email)) {
+  if (await isEmailTaken(userBody.email)) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Email already taken');
   }
 
   return runInTransaction(async (tx) => {
-    const user = await userRepository.create(
+    const user = await createUserRecord(
       {
         ...userBody,
         password: hashedPassword,
@@ -30,7 +40,7 @@ const createUser = async (userBody) => {
       tx,
     );
 
-    await auditService.logEvent(
+    await logEvent(
       {
         event: 'users.created',
         entityType: 'User',
@@ -56,7 +66,8 @@ const createUser = async (userBody) => {
  * @returns {Promise<Object>} Standard relational pagination response shape
  */
 const queryUsers = async (filter, options) => {
-  return userRepository.paginateUsers(filter, options);
+  const users = await paginateUserRecords(filter, options);
+  return users;
 };
 
 /**
@@ -65,7 +76,7 @@ const queryUsers = async (filter, options) => {
  * @returns {Promise<Object|null>}
  */
 const getUserById = async (id) => {
-  return userRepository.findById(id);
+  return findById(id);
 };
 
 /**
@@ -74,7 +85,7 @@ const getUserById = async (id) => {
  * @returns {Promise<Object|null>}
  */
 const getUserByEmail = async (email) => {
-  return userRepository.findByEmail(email);
+  return findUserByEmailRecord(email);
 };
 
 /**
@@ -95,14 +106,14 @@ const updateUserById = async (userId, updateBody) => {
     dataToUpdate.password = await hashPassword(dataToUpdate.password);
   }
 
-  if (dataToUpdate.email && (await userRepository.isEmailTaken(dataToUpdate.email, userId))) {
+  if (updateBody.email && (await isEmailTaken(updateBody.email, userId))) {
     throw new ApiError(httpStatus.BAD_REQUEST, 'Email already taken');
   }
 
   return runInTransaction(async (tx) => {
-    const updatedUser = await userRepository.updateById(userId, dataToUpdate, tx);
+    const updatedUser = await updateUserByIdRecord(userId, dataToUpdate, tx);
 
-    await auditService.logEvent(
+    await logEvent(
       {
         event: 'users.updated',
         entityType: 'User',
@@ -132,10 +143,14 @@ const deleteUserById = async (userId) => {
   // we explicitly delete them inside a transaction before deleting the user.
   // Ephemeral tokens cascade automatically via foreign key settings.
   await runInTransaction(async (tx) => {
-    await noteRepository.deleteManyByOwnerId(userId, tx);
-    await userRepository.deleteById(userId, tx);
+    // Execute any registered pre-deletion hooks from other modules (dependency inversion)
+    if (userDeletionHooks.length > 0) {
+      await Promise.all(userDeletionHooks.map((hook) => hook(userId, tx)));
+    }
 
-    await auditService.logEvent(
+    await deleteUserByIdRecord(userId, tx);
+
+    await logEvent(
       {
         event: 'users.deleted',
         entityType: 'User',
@@ -149,11 +164,4 @@ const deleteUserById = async (userId) => {
   return user;
 };
 
-module.exports = {
-  createUser,
-  queryUsers,
-  getUserById,
-  getUserByEmail,
-  updateUserById,
-  deleteUserById,
-};
+export { createUser, queryUsers, getUserById, getUserByEmail, updateUserById, deleteUserById, registerUserDeletionHook };

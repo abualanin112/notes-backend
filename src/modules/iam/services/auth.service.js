@@ -1,16 +1,19 @@
-const httpStatus = require('http-status');
-const crypto = require('crypto');
-const tokenService = require('./token.service');
-const { userRepository, tokenRepository, runInTransaction } = require('../../../repositories');
-const { ApiError } = require('../../shared');
-const {
-  tokens: { tokenTypes },
-} = require('../../shared');
-const {
-  password: { comparePassword, hashPassword },
-} = require('../../shared');
-const { logger } = require('../../shared');
-const auditService = require('../../../services/audit.service');
+import httpStatus from 'http-status';
+import crypto from 'crypto';
+import { verifyToken, generateAuthTokens } from './token.service.js';
+import { findByEmail, findById as findUserById, updateById as updateUserById } from '../repositories/user.repository.js';
+import {
+  findOne as findTokenRecord,
+  deleteById as deleteTokenById,
+  updateById as updateTokenById,
+  deleteMany as deleteManyTokens,
+} from '../repositories/token.repository.js';
+import { runInTransaction } from '../../infrastructure/index.js';
+import { ApiError, tokens, password as passwordUtils, logger } from '../../shared/index.js';
+import { logEvent } from '../../audit/index.js';
+
+const { tokenTypes } = tokens;
+const { comparePassword, hashPassword } = passwordUtils;
 
 /**
  * Login with username and password
@@ -20,7 +23,7 @@ const auditService = require('../../../services/audit.service');
  */
 const loginUserWithEmailAndPassword = async (email, password) => {
   // Explicitly fetch password using findByEmail with includePassword: true
-  const user = await userRepository.findByEmail(email, { includePassword: true });
+  const user = await findByEmail(email, { includePassword: true });
   if (!user || !(await comparePassword(password, user.password))) {
     logger.warn({ event: 'auth.login.failed', email }, 'Failed login attempt');
     throw new ApiError(httpStatus.UNAUTHORIZED, 'Incorrect email or password');
@@ -29,7 +32,7 @@ const loginUserWithEmailAndPassword = async (email, password) => {
   // Strip password hash from returned object for security
   delete user.password;
 
-  await auditService.logEvent({
+  await logEvent({
     event: 'auth.login',
     entityType: 'User',
     entityId: user.id,
@@ -47,7 +50,7 @@ const loginUserWithEmailAndPassword = async (email, password) => {
  */
 const logout = async (refreshToken) => {
   const hashedToken = crypto.createHash('sha256').update(refreshToken).digest('hex');
-  const refreshTokenDoc = await tokenRepository.findOne({
+  const refreshTokenDoc = await findTokenRecord({
     token: hashedToken,
     type: tokenTypes.REFRESH,
     blacklisted: false,
@@ -55,9 +58,9 @@ const logout = async (refreshToken) => {
   if (!refreshTokenDoc) {
     throw new ApiError(httpStatus.NOT_FOUND, 'Not found');
   }
-  await tokenRepository.deleteById(refreshTokenDoc.id);
+  await deleteTokenById(refreshTokenDoc.id);
 
-  await auditService.logEvent({
+  await logEvent({
     event: 'auth.logout',
     entityType: 'User',
     entityId: refreshTokenDoc.userId,
@@ -73,8 +76,8 @@ const logout = async (refreshToken) => {
 const refreshAuth = async (refreshToken, ip = null, userAgent = null) => {
   try {
     return await runInTransaction(async (tx) => {
-      const refreshTokenDoc = await tokenService.verifyToken(refreshToken, tokenTypes.REFRESH, tx);
-      const user = await userRepository.findById(refreshTokenDoc.userId, tx);
+      const refreshTokenDoc = await verifyToken(refreshToken, tokenTypes.REFRESH, tx);
+      const user = await findUserById(refreshTokenDoc.userId, tx);
       if (!user) {
         throw new Error();
       }
@@ -86,13 +89,13 @@ const refreshAuth = async (refreshToken, ip = null, userAgent = null) => {
         }
 
         // REUSE DETECTED! Threat protocol.
-        await tokenRepository.deleteMany({ familyId: refreshTokenDoc.familyId }, tx);
+        await deleteManyTokens({ familyId: refreshTokenDoc.familyId }, tx);
 
         logger.error(
           { event: 'auth.refresh.reuse_detected', targetId: user.id, familyId: refreshTokenDoc.familyId },
           'Refresh token reuse detected. Family revoked.',
         );
-        await auditService.logEvent(
+        await logEvent(
           {
             event: 'auth.refresh.reuse_detected',
             entityType: 'User',
@@ -107,9 +110,9 @@ const refreshAuth = async (refreshToken, ip = null, userAgent = null) => {
       }
 
       // Blacklist the old refresh token instead of deleting it, enabling reuse detection
-      await tokenRepository.updateById(refreshTokenDoc.id, { blacklisted: true }, tx);
+      await updateTokenById(refreshTokenDoc.id, { blacklisted: true }, tx);
 
-      await auditService.logEvent(
+      await logEvent(
         {
           event: 'auth.refresh.rotated',
           entityType: 'User',
@@ -120,7 +123,7 @@ const refreshAuth = async (refreshToken, ip = null, userAgent = null) => {
       );
 
       // Generate new tokens belonging to the same family
-      return tokenService.generateAuthTokens(user, tx, refreshTokenDoc.familyId, ip, userAgent);
+      return generateAuthTokens(user, tx, refreshTokenDoc.familyId, ip, userAgent);
     });
   } catch (error) {
     if (error instanceof ApiError) throw error;
@@ -137,8 +140,8 @@ const refreshAuth = async (refreshToken, ip = null, userAgent = null) => {
 const resetPassword = async (resetPasswordToken, newPassword) => {
   try {
     await runInTransaction(async (tx) => {
-      const resetPasswordTokenDoc = await tokenService.verifyToken(resetPasswordToken, tokenTypes.RESET_PASSWORD, tx);
-      const user = await userRepository.findById(resetPasswordTokenDoc.userId, tx);
+      const resetPasswordTokenDoc = await verifyToken(resetPasswordToken, tokenTypes.RESET_PASSWORD, tx);
+      const user = await findUserById(resetPasswordTokenDoc.userId, tx);
       if (!user) {
         throw new Error();
       }
@@ -147,8 +150,8 @@ const resetPassword = async (resetPasswordToken, newPassword) => {
       const hashedPassword = await hashPassword(newPassword);
 
       // Update user password and delete reset tokens atomically
-      await userRepository.updateById(user.id, { password: hashedPassword }, tx);
-      await tokenRepository.deleteMany(
+      await updateUserById(user.id, { password: hashedPassword }, tx);
+      await deleteManyTokens(
         {
           userId: user.id,
           type: tokenTypes.RESET_PASSWORD,
@@ -156,7 +159,7 @@ const resetPassword = async (resetPasswordToken, newPassword) => {
         tx,
       );
     });
-  } catch (error) {
+  } catch {
     throw new ApiError(httpStatus.UNAUTHORIZED, 'Password reset failed');
   }
 };
@@ -169,31 +172,25 @@ const resetPassword = async (resetPasswordToken, newPassword) => {
 const verifyEmail = async (verifyEmailToken) => {
   try {
     await runInTransaction(async (tx) => {
-      const verifyEmailTokenDoc = await tokenService.verifyToken(verifyEmailToken, tokenTypes.VERIFY_EMAIL, tx);
-      const user = await userRepository.findById(verifyEmailTokenDoc.userId, tx);
+      const verifyEmailTokenDoc = await verifyToken(verifyEmailToken, tokenTypes.VERIFY_EMAIL, tx);
+      const user = await findUserById(verifyEmailTokenDoc.userId, tx);
       if (!user) {
         throw new Error();
       }
 
       // Delete all verification tokens and mark user verified atomically
-      await tokenRepository.deleteMany(
+      await deleteManyTokens(
         {
           userId: user.id,
           type: tokenTypes.VERIFY_EMAIL,
         },
         tx,
       );
-      await userRepository.updateById(user.id, { isEmailVerified: true }, tx);
+      await updateUserById(user.id, { isEmailVerified: true }, tx);
     });
-  } catch (error) {
+  } catch {
     throw new ApiError(httpStatus.UNAUTHORIZED, 'Email verification failed');
   }
 };
 
-module.exports = {
-  loginUserWithEmailAndPassword,
-  logout,
-  refreshAuth,
-  resetPassword,
-  verifyEmail,
-};
+export { loginUserWithEmailAndPassword, logout, refreshAuth, resetPassword, verifyEmail };

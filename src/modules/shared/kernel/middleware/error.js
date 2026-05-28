@@ -1,12 +1,13 @@
-const { Prisma } = require('@prisma/client');
-const httpStatus = require('http-status');
-const config = require('../config');
-const ApiError = require('../ApiError');
+import { Prisma } from '@prisma/client';
+import httpStatus from 'http-status';
+import { config } from '../config.js';
+import { ApiError } from '../ApiError.js';
 
 const errorConverter = (err, req, res, next) => {
   let error = err;
   if (!(error instanceof ApiError)) {
     let statusCode = error.statusCode || httpStatus.INTERNAL_SERVER_ERROR;
+    // eslint-disable-next-line security/detect-object-injection
     let message = error.message || httpStatus[statusCode];
 
     // Handle Prisma specific database request errors
@@ -64,7 +65,4 @@ const errorHandler = (err, req, res, next) => {
   res.status(statusCode).send(response);
 };
 
-module.exports = {
-  errorConverter,
-  errorHandler,
-};
+export { errorConverter, errorHandler };

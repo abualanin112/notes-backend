@@ -1,4 +1,6 @@
-const { userRepository, tokenRepository, noteRepository } = require('../../../src/repositories');
+import { create as createUser, findByEmail } from '../../../src/modules/iam/repositories/user.repository.js';
+import { create as createToken, deleteExpiredTokens } from '../../../src/modules/iam/repositories/token.repository.js';
+import { create as createNote } from '../../../src/modules/notes/note.repository.js';
 
 describe('Repositories Layer', () => {
   let mockTx;
@@ -30,12 +32,12 @@ describe('Repositories Layer', () => {
   describe('User Repository', () => {
     test('should call prisma.user.create with correct data', async () => {
       const userData = { name: 'Test', email: 'test@example.com' };
-      await userRepository.create(userData, mockTx);
+      await createUser(userData, mockTx);
       expect(mockTx.user.create).toHaveBeenCalledWith({ data: userData });
     });
 
     test('should call prisma.user.findUnique with password omitted by default', async () => {
-      await userRepository.findByEmail('test@example.com', {}, mockTx);
+      await findByEmail('test@example.com', {}, mockTx);
       expect(mockTx.user.findUnique).toHaveBeenCalledWith({
         where: { email: 'test@example.com' },
         omit: { password: true },
@@ -43,7 +45,7 @@ describe('Repositories Layer', () => {
     });
 
     test('should call prisma.user.findUnique with password included when explicitly requested', async () => {
-      await userRepository.findByEmail('test@example.com', { includePassword: true }, mockTx);
+      await findByEmail('test@example.com', { includePassword: true }, mockTx);
       expect(mockTx.user.findUnique).toHaveBeenCalledWith({
         where: { email: 'test@example.com' },
         omit: { password: false },
@@ -54,7 +56,7 @@ describe('Repositories Layer', () => {
   describe('Token Repository', () => {
     test('should call prisma.token.create and connect user relation', async () => {
       const tokenData = { token: 'jwt123', type: 'refresh', userId: 'user123' };
-      await tokenRepository.create(tokenData, mockTx);
+      await createToken(tokenData, mockTx);
       expect(mockTx.token.create).toHaveBeenCalledWith({
         data: {
           token: 'jwt123',
@@ -71,7 +73,7 @@ describe('Repositories Layer', () => {
         .mockResolvedValueOnce([]);
       mockTx.token.deleteMany = vi.fn().mockResolvedValue({ count: 2 });
 
-      const result = await tokenRepository.deleteExpiredTokens(mockTx);
+      const result = await deleteExpiredTokens(mockTx);
 
       expect(result).toEqual({ count: 2 });
       expect(mockTx.token.findMany).toHaveBeenCalledTimes(2);
@@ -85,7 +87,7 @@ describe('Repositories Layer', () => {
   describe('Note Repository', () => {
     test('should call prisma.note.create and connect owner relation', async () => {
       const noteData = { title: 'Hello', content: 'World', ownerId: 'user123' };
-      await noteRepository.create(noteData, mockTx);
+      await createNote(noteData, mockTx);
       expect(mockTx.note.create).toHaveBeenCalledWith({
         data: {
           title: 'Hello',

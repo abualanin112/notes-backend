@@ -1,5 +1,5 @@
-const { PrismaClient } = require('@prisma/client');
-const logger = require('../src/config/logger');
+import { PrismaClient } from '@prisma/client';
+import { logger } from '../src/modules/shared/index.js';
 
 const prisma = new PrismaClient();
 

@@ -1,6 +1,6 @@
-const logger = require('./logger');
+import { logger } from './logger.js';
 
-const metrics = {
+export const metrics = {
   redis: {
     reconnects: 0,
     degradedModeTransitions: 0,
@@ -36,7 +36,7 @@ const getAverageWorkerDurationMs = () => {
 
 let flushInterval;
 
-const startMetricsFlusher = (intervalMs = 60000) => {
+export const startMetricsFlusher = (intervalMs = 60000) => {
   if (flushInterval) clearInterval(flushInterval);
   flushInterval = setInterval(() => {
     logger.info(
@@ -53,9 +53,4 @@ const startMetricsFlusher = (intervalMs = 60000) => {
       'Operational Metrics Summary',
     );
   }, intervalMs).unref();
-};
-
-module.exports = {
-  metrics,
-  startMetricsFlusher,
 };

@@ -1,11 +1,16 @@
-const prisma = require('./prisma/prisma');
-const redis = require('./cache/redis');
-const config = require('./config/config');
-const tokenCleanupWorker = require('./workers/tokenCleanup.worker');
+import { prisma } from './prisma.js';
 
-module.exports = {
-  prisma,
-  redis,
-  config,
-  tokenCleanupWorker,
-};
+export {
+  getClient as getRedisClient,
+  disconnectClient as disconnectRedis,
+  isDegraded as isRedisDegraded,
+  cacheGet,
+  cacheSet,
+  cacheDel,
+  cacheIncr,
+  resetClient as resetRedisClient,
+} from './redis.js';
+
+const runInTransaction = (callback) => prisma.$transaction(callback);
+
+export { prisma, runInTransaction };

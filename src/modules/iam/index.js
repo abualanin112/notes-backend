@@ -1,39 +1,25 @@
-const authService = require('./services/auth.service');
-const authorizationService = require('./services/authorization.service');
-const permissionService = require('./services/permission.service');
-const tokenService = require('./services/token.service');
-const userService = require('./services/user.service');
-const emailService = require('./services/email.service');
-const authMiddleware = require('./middleware/auth');
-const passportConfig = require('./config/passport');
-const authRoutes = require('./routes/auth.route');
-const userRoutes = require('./routes/user.route');
+import { authRoutes } from './routes/auth.route.js';
+import { userRoutes } from './routes/user.route.js';
 
-// TODO: IAM BOUNDARY
+export * as authService from './services/auth.service.js';
+export * as authorizationService from './services/authorization.service.js';
+export * as permissionService from './services/permission.service.js';
+export * as tokenService from './services/token.service.js';
+export * as userService from './services/user.service.js';
+export * as emailService from './services/email.service.js';
 
+export { auth as authMiddleware } from './auth.middleware.js';
+export * from './passport.js';
 /**
  * Register IAM Module Routes
  * @param {import('express').Router} router
  * @param {Object} options
  */
-const registerIamModule = (router, options = {}) => {
+export const registerIamModule = (router, options = {}) => {
   if (options.authLimiter) {
     router.use('/auth', options.authLimiter);
   }
+
   router.use('/auth', authRoutes);
   router.use('/users', userRoutes);
-};
-
-module.exports = {
-  authService,
-  authorizationService,
-  permissionService,
-  tokenService,
-  userService,
-  emailService,
-  authMiddleware,
-  passportConfig,
-  authRoutes,
-  userRoutes,
-  registerIamModule,
 };

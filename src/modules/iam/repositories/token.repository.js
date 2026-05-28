@@ -1,4 +1,4 @@
-const { prisma } = require('../../infrastructure');
+import { prisma } from '../../infrastructure/index.js';
 
 /**
  * Repository layer for Token entity using Prisma Client
@@ -82,7 +82,6 @@ const deleteExpiredTokens = async (tx = prisma) => {
   let hasMore = true;
   const BATCH_SIZE = 1000;
 
-  /* eslint-disable no-await-in-loop */
   while (hasMore) {
     // Find a batch of expired tokens
     const expiredTokens = await tx.token.findMany({
@@ -107,11 +106,4 @@ const deleteExpiredTokens = async (tx = prisma) => {
   return { count: totalDeleted };
 };
 
-module.exports = {
-  create,
-  findOne,
-  deleteById,
-  deleteMany,
-  updateById,
-  deleteExpiredTokens,
-};
+export { create, findOne, deleteById, deleteMany, updateById, deleteExpiredTokens };

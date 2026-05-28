@@ -1,8 +1,5 @@
-const { prisma } = require('../../infrastructure');
-const {
-  redis: { cacheGet, cacheSet, cacheDel, cacheIncr },
-} = require('../../infrastructure');
-const { logger } = require('../../shared');
+import { prisma, cacheGet, cacheSet, cacheDel, cacheIncr } from '../../infrastructure/index.js';
+import { logger } from '../../shared/index.js';
 
 // ──────────────────────────────────────────────────────────────
 // Constants
@@ -217,7 +214,7 @@ const invalidateRolePermissionCache = async (roleId) => {
   );
 };
 
-module.exports = {
+export {
   getUserPermissions,
   matchesPermission,
   hasPermission,

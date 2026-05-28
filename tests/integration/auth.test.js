@@ -1,22 +1,23 @@
-const request = require('supertest');
-const faker = require('faker');
-const httpStatus = require('http-status');
-const httpMocks = require('node-mocks-http');
-const dayjs = require('dayjs');
-const bcrypt = require('bcryptjs');
-const app = require('../../src/app');
-const config = require('../../src/config/config');
-const auth = require('../../src/middlewares/auth');
-const { tokenService, emailService } = require('../../src/services');
-const ApiError = require('../../src/utils/ApiError');
-const setupTestDB = require('../utils/setupTestDB');
-const prisma = require('../../src/config/prisma');
+import request from 'supertest';
+import { faker } from '@faker-js/faker';
+import httpStatus from 'http-status';
+import httpMocks from 'node-mocks-http';
+import dayjs from 'dayjs';
+import bcrypt from 'bcryptjs';
+import { app } from '../../src/app.js';
+import { config, tokens, ApiError } from '../../src/modules/shared/index.js';
+import { authMiddleware as auth } from '../../src/modules/iam/index.js';
+import * as tokenService from '../../src/modules/iam/services/token.service.js';
+import * as emailService from '../../src/modules/iam/services/email.service.js';
+import setupTestDB from '../utils/setupTestDB.js';
+import { prisma } from '../../src/modules/infrastructure/index.js';
+
+import { userOne, admin, insertUsers } from '../fixtures/user.fixture.js';
+import { userOneAccessToken, adminAccessToken } from '../fixtures/token.fixture.js';
+
+const { tokenTypes } = tokens;
 
 const moment = dayjs;
-
-const { tokenTypes } = require('../../src/config/tokens');
-const { userOne, admin, insertUsers } = require('../fixtures/user.fixture');
-const { userOneAccessToken, adminAccessToken } = require('../fixtures/token.fixture');
 
 setupTestDB();
 
@@ -25,7 +26,7 @@ describe('Auth routes', () => {
     let newUser;
     beforeEach(() => {
       newUser = {
-        name: faker.name.findName(),
+        name: faker.person.fullName(),
         email: faker.internet.email().toLowerCase(),
         password: 'password1',
       };

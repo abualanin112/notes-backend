@@ -1,11 +1,11 @@
-const request = require('supertest');
-const httpStatus = require('http-status');
-const app = require('../../src/app');
-const setupTestDB = require('../utils/setupTestDB');
-const prisma = require('../../src/config/prisma');
-const { userOne, userTwo, insertUsers } = require('../fixtures/user.fixture');
-const { userOneAccessToken } = require('../fixtures/token.fixture');
-const { noteOne, noteTwo, noteThree, insertNotes } = require('../fixtures/note.fixture');
+import request from 'supertest';
+import httpStatus from 'http-status';
+import { app } from '../../src/app.js';
+import setupTestDB from '../utils/setupTestDB.js';
+import { prisma } from '../../src/modules/infrastructure/index.js';
+import { userOne, userTwo, insertUsers } from '../fixtures/user.fixture.js';
+import { userOneAccessToken } from '../fixtures/token.fixture.js';
+import { noteOne, noteTwo, noteThree, insertNotes } from '../fixtures/note.fixture.js';
 
 setupTestDB();
 

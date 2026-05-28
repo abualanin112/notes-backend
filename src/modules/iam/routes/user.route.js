@@ -1,8 +1,8 @@
-const express = require('express');
-const auth = require('../middleware/auth');
-const { validate } = require('../../shared');
-const userValidation = require('../validations/user.validation');
-const userController = require('../controllers/user.controller');
+import express from 'express';
+import { auth } from '../auth.middleware.js';
+import { validate } from '../../shared/index.js';
+import * as userValidation from '../validations/user.validation.js';
+import * as userController from '../controllers/user.controller.js';
 
 const router = express.Router();
 
@@ -17,7 +17,7 @@ router
   .patch(auth('update:users:own'), validate(userValidation.updateUser), userController.updateUser)
   .delete(auth('delete:users:own'), validate(userValidation.deleteUser), userController.deleteUser);
 
-module.exports = router;
+export { router as userRoutes };
 
 /**
  * @swagger

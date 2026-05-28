@@ -1,5 +1,7 @@
-const { z } = require('zod');
-const { password } = require('./custom.validation');
+import { z } from 'zod';
+import { customValidation } from '../../shared/index.js';
+
+const { password } = customValidation;
 
 // Compose register using self-contained Zod definitions
 const register = z.object({
@@ -55,12 +57,4 @@ const verifyEmail = z.object({
   }),
 });
 
-module.exports = {
-  register,
-  login,
-  logout,
-  refreshTokens,
-  forgotPassword,
-  resetPassword,
-  verifyEmail,
-};
+export { register, login, logout, refreshTokens, forgotPassword, resetPassword, verifyEmail };

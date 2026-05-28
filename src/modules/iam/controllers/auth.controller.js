@@ -1,7 +1,7 @@
-const httpStatus = require('http-status');
-const { catchAsync } = require('../../shared');
-const { authService, userService, tokenService, emailService } = require('../services');
-const { serializeUser } = require('../serializers/user.serializer');
+import httpStatus from 'http-status';
+import { catchAsync } from '../../shared/index.js';
+import { authService, userService, tokenService, emailService } from '../services/index.js';
+import { serializeUser } from '../user.serializer.js';
 
 const register = catchAsync(async (req, res, next) => {
   const user = await userService.createUser(req.body);
@@ -62,13 +62,4 @@ const verifyEmail = catchAsync(async (req, res, next) => {
   next();
 });
 
-module.exports = {
-  register,
-  login,
-  logout,
-  refreshTokens,
-  forgotPassword,
-  resetPassword,
-  sendVerificationEmail,
-  verifyEmail,
-};
+export { register, login, logout, refreshTokens, forgotPassword, resetPassword, sendVerificationEmail, verifyEmail };

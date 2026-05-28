@@ -44,6 +44,4 @@ const serializeResponse = (req, res, next) => {
   res.status(res.locals.statusCode || 200).send(response);
 };
 
-module.exports = {
-  serializeResponse,
-};
+export { serializeResponse };

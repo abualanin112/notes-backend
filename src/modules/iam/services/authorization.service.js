@@ -1,9 +1,8 @@
-const httpStatus = require('http-status');
-const { ApiError } = require('../../shared');
-const permissionService = require('./permission.service');
-const { logger } = require('../../shared');
-const auditService = require('../../../services/audit.service');
-const { prisma } = require('../../infrastructure');
+import httpStatus from 'http-status';
+import { ApiError, logger } from '../../shared/index.js';
+import { hasPermission, getMaxRoleLevel, invalidateUserPermissionCache } from './permission.service.js';
+import { logEvent } from '../../audit/index.js';
+import { prisma } from '../../infrastructure/index.js';
 
 // ──────────────────────────────────────────────────────────────
 // Scope-Aware Permission Helpers
@@ -32,7 +31,7 @@ const assertScopedPermission = async (actor, resourceOwnerId, action, resource) 
   const requiredScope = isOwnResource ? 'own' : 'any';
   const permission = `${action}:${resource}:${requiredScope}`;
 
-  if (await permissionService.hasPermission(actor.id, permission)) {
+  if (await hasPermission(actor.id, permission)) {
     return true;
   }
 
@@ -48,7 +47,7 @@ const assertScopedPermission = async (actor, resourceOwnerId, action, resource) 
   if (!isOwnResource) {
     // Cross-resource access attempt without :any scope is a potential escalation
     logger.error({ ...logContext, event: 'authz.escalation.attempted' }, 'Suspicious privilege escalation attempt');
-    await auditService.logEvent({
+    await logEvent({
       event: 'authz.escalation.attempted',
       entityType: resource,
       entityId: resourceOwnerId,
@@ -128,7 +127,7 @@ const assertCanManageNote = async (actor, noteOwnerId) => {
  */
 const assertCanAssignRole = async (actor, targetRoleId) => {
   // 1. Gate: actor must have the role-assignment permission
-  if (!(await permissionService.hasPermission(actor.id, 'assign:roles:any'))) {
+  if (!(await hasPermission(actor.id, 'assign:roles:any'))) {
     logger.warn(
       { event: 'authz.role_assign.denied', actorId: actor.id, targetRoleId },
       'Role assignment denied — missing assign:roles:any permission',
@@ -138,7 +137,7 @@ const assertCanAssignRole = async (actor, targetRoleId) => {
 
   // 2. Escalation check: resolve both levels
   const [actorMaxLevel, targetRole] = await Promise.all([
-    permissionService.getMaxRoleLevel(actor.id),
+    getMaxRoleLevel(actor.id),
     prisma.role.findUnique({ where: { id: targetRoleId }, select: { id: true, name: true, level: true } }),
   ]);
 
@@ -158,7 +157,7 @@ const assertCanAssignRole = async (actor, targetRoleId) => {
       },
       'Privilege escalation attempt — target role level exceeds actor level',
     );
-    await auditService.logEvent({
+    await logEvent({
       event: 'authz.escalation.attempted',
       entityType: 'Role',
       entityId: targetRoleId,
@@ -197,7 +196,7 @@ const assignRoleToUser = async (actor, targetUserId, roleId) => {
     });
 
     // 3. Trigger audit log for assignment
-    await auditService.logEvent(
+    await logEvent(
       {
         event: 'authz.role.assigned',
         entityType: 'UserRole',
@@ -210,7 +209,7 @@ const assignRoleToUser = async (actor, targetUserId, roleId) => {
     );
 
     // 4. Invalidate cache so permissions update immediately
-    await permissionService.invalidateUserPermissionCache(targetUserId);
+    await invalidateUserPermissionCache(targetUserId);
 
     logger.info(
       { event: 'authz.role.assigned', actorId: actor.id, targetUserId, roleId },
@@ -221,7 +220,7 @@ const assignRoleToUser = async (actor, targetUserId, roleId) => {
   });
 };
 
-module.exports = {
+export {
   assertScopedPermission,
   assertCanReadUser,
   assertCanManageUser,

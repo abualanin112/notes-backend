@@ -1,27 +1,35 @@
-process.env.REDIS_URL = 'redis://localhost:6379';
+import { metrics } from '../../../src/modules/shared/index.js';
+import {
+  resetRedisClient,
+  getRedisClient,
+  isRedisDegraded,
+  cacheGet,
+  cacheSet,
+} from '../../../src/modules/infrastructure/index.js';
 
-const redis = require('redis');
-const { metrics } = require('../../../src/config/metrics');
+vi.hoisted(() => {
+  process.env.REDIS_URL = 'redis://localhost:6379';
+});
 
-// Define mock client
-const mockRedisClient = {
+// Define mock client using vi.hoisted
+const mockRedisClient = vi.hoisted(() => ({
   connect: vi.fn(),
   get: vi.fn(),
   setEx: vi.fn(),
   del: vi.fn(),
   on: vi.fn(),
   quit: vi.fn(),
-};
+}));
 
-// Spy on createClient BEFORE requiring redisConfig
-vi.spyOn(redis, 'createClient').mockReturnValue(mockRedisClient);
-
-const redisConfig = require('../../../src/config/redis');
+// Mock the 'redis' module before imports
+vi.mock('redis', () => ({
+  createClient: vi.fn().mockReturnValue(mockRedisClient),
+}));
 
 describe('Infrastructure: Redis Circuit Breaker & Fallback', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    redisConfig.resetClient();
+    resetRedisClient();
 
     // Reset metrics
     metrics.redis.reconnects = 0;
@@ -46,11 +54,10 @@ describe('Infrastructure: Redis Circuit Breaker & Fallback', () => {
 
     // Attempt to connect 5 times
     for (let i = 0; i < 5; i++) {
-      await redisConfig.getClient();
+      await getRedisClient();
     }
 
-    // After 5 failures, circuit breaker is open. Next attempt returns null directly.
-    const client6 = await redisConfig.getClient();
+    const client6 = await getRedisClient();
     expect(client6).toBeNull();
 
     // Connect should only be called 5 times.
@@ -58,24 +65,22 @@ describe('Infrastructure: Redis Circuit Breaker & Fallback', () => {
 
     // Degraded mode transition should be recorded
     expect(metrics.redis.degradedModeTransitions).toBeGreaterThanOrEqual(1);
-    expect(redisConfig.isDegraded()).toBe(true);
+    expect(isRedisDegraded()).toBe(true);
   });
 
   it('should fallback to memory cache and record metrics correctly', async () => {
     // Force circuit breaker open
     mockRedisClient.connect.mockRejectedValue(new Error('Connection failed'));
     for (let i = 0; i < 5; i++) {
-      await redisConfig.getClient();
+      await getRedisClient();
     }
 
-    // Now fallback to memory
-    await redisConfig.cacheSet('fallback_key', { data: 123 }, 60);
-    const result = await redisConfig.cacheGet('fallback_key');
+    await cacheSet('fallback_key', { data: 123 }, 60);
+    const result = await cacheGet('fallback_key');
 
     expect(result).toEqual({ data: 123 });
     expect(metrics.cache.hits).toBe(1);
-
-    const missed = await redisConfig.cacheGet('missing_key');
+    const missed = await cacheGet('missing_key');
     expect(missed).toBeNull();
     expect(metrics.cache.misses).toBe(1);
   });

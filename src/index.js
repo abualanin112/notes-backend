@@ -1,11 +1,9 @@
-const { monitorEventLoopDelay } = require('perf_hooks');
-const app = require('./app');
-const config = require('./config/config');
-const logger = require('./config/logger');
-const prisma = require('./config/prisma');
-const redisConfig = require('./config/redis');
-const { startTokenCleanupJob } = require('./workers/tokenCleanup.worker');
-const { startMetricsFlusher } = require('./config/metrics');
+/* eslint-disable n/no-process-exit */
+import { monitorEventLoopDelay } from 'perf_hooks';
+import { app } from './app.js';
+import { config, logger, startMetricsFlusher } from './modules/shared/index.js';
+import { prisma, getRedisClient, disconnectRedis } from './modules/infrastructure/index.js';
+import { startTokenCleanupJob } from './modules/iam/tokenCleanup.worker.js';
 
 let server;
 
@@ -39,7 +37,7 @@ const bootstrap = async () => {
 
     // 2. Initialize secondary cache (Redis) before HTTP binding
     logger.info('Asserting Redis cache connectivity...');
-    const redisClient = await redisConfig.getClient();
+    const redisClient = await getRedisClient();
     if (!redisClient) {
       logger.warn(
         { event: 'cache.redis.degraded' },
@@ -105,8 +103,8 @@ const performShutdown = async () => {
 
   // 4. Disconnect Redis
   try {
-    if (typeof redisConfig.disconnectClient === 'function') {
-      await redisConfig.disconnectClient();
+    if (typeof disconnectRedis === 'function') {
+      await disconnectRedis();
       logger.info('Redis client disconnected');
     }
   } catch (err) {

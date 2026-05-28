@@ -1,18 +1,18 @@
-const request = require('supertest');
-const httpStatus = require('http-status');
+import request from 'supertest';
+import httpStatus from 'http-status';
 
-const app = require('../../src/app');
-const setupTestDB = require('../utils/setupTestDB');
-const prisma = require('../../src/config/prisma');
-const redisConfig = require('../../src/config/redis');
-const { userOne, userTwo, insertUsers } = require('../fixtures/user.fixture');
-const { userOneAccessToken } = require('../fixtures/token.fixture');
+import { app } from '../../src/app.js';
+import setupTestDB from '../utils/setupTestDB.js';
+import { prisma, resetRedisClient, getRedisClient } from '../../src/modules/infrastructure/index.js';
+import * as authorizationService from '../../src/modules/iam/services/authorization.service.js';
+import { userOne, userTwo, insertUsers } from '../fixtures/user.fixture.js';
+import { userOneAccessToken } from '../fixtures/token.fixture.js';
 
 setupTestDB();
 
 describe('Security Regression & Hardening', () => {
   beforeEach(() => {
-    redisConfig.resetClient();
+    resetRedisClient();
   });
 
   describe('RBAC Bypasses & Escalation', () => {
@@ -49,7 +49,7 @@ describe('Security Regression & Hardening', () => {
 
       // userTwo (level 50) tries to assign super-admin (level 100) to userOne
       // This MUST be blocked.
-      const { assignRoleToUser } = require('../../src/services/authorization.service');
+      const { assignRoleToUser } = authorizationService;
 
       await expect(assignRoleToUser({ id: userTwo.id }, userOne.id, superAdminRole.id)).rejects.toThrow(
         'Cannot assign a role with a higher privilege level than your own',
@@ -71,10 +71,10 @@ describe('Security Regression & Hardening', () => {
       // because we just want to force a Redis failure scenario
 
       // Simulate redisClient being created but failing and nullifying itself
-      redisConfig.resetClient();
+      resetRedisClient();
 
       // Simulate the getClient behavior when Redis is unreachable and retries exhaust
-      vi.spyOn(redisConfig, 'getClient').mockImplementation(async () => {
+      vi.spyOn({ getRedisClient }, 'getRedisClient').mockImplementation(async () => {
         // Return null to signify Redis is unavailable
         return null;
       });

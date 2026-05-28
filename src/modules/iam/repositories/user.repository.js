@@ -1,5 +1,5 @@
-const { prisma } = require('../../infrastructure');
-const { paginate } = require('../../shared');
+import { prisma } from '../../infrastructure/index.js';
+import { paginate } from '../../shared/index.js';
 
 /**
  * Repository layer for User entity using Prisma Client
@@ -118,12 +118,4 @@ const paginateUsers = async (filter, options, tx = prisma) => {
   return paginate(tx.user, filter, paginateOptions);
 };
 
-module.exports = {
-  create,
-  findById,
-  findByEmail,
-  isEmailTaken,
-  updateById,
-  deleteById,
-  paginateUsers,
-};
+export { create, findById, findByEmail, isEmailTaken, updateById, deleteById, paginateUsers };

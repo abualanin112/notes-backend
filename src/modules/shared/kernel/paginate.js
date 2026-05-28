@@ -37,11 +37,16 @@ const parsePopulate = (populate) => {
     let current = include;
 
     parts.forEach((part, index) => {
+      // eslint-disable-next-line security/detect-object-injection
       if (!current[part]) {
+        // eslint-disable-next-line security/detect-object-injection
         current[part] = index === parts.length - 1 ? true : { include: {} };
+        // eslint-disable-next-line security/detect-object-injection
       } else if (current[part] === true) {
+        // eslint-disable-next-line security/detect-object-injection
         current[part] = { include: {} };
       }
+      // eslint-disable-next-line security/detect-object-injection
       current = current[part].include || current[part];
     });
   });
@@ -90,8 +95,4 @@ const paginate = async (prismaModel, filter = {}, options = {}) => {
   };
 };
 
-module.exports = {
-  parseSortBy,
-  parsePopulate,
-  paginate,
-};
+export { parseSortBy, parsePopulate, paginate };

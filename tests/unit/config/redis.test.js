@@ -1,22 +1,29 @@
-const redis = require('redis');
+import {
+  cacheGet,
+  cacheSet,
+  cacheDel,
+  getRedisClient as getClient,
+  resetRedisClient as resetClient,
+} from '../../../src/modules/infrastructure/index.js';
 
 // Enforce REDIS_URL environment variable before any modules are required
-process.env.REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
+vi.hoisted(() => {
+  process.env.REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
+});
 
-// Define the mock client shape
-const mockRedisClient = {
+// Define the mock client shape using vi.hoisted so it's accessible inside vi.mock
+const mockRedisClient = vi.hoisted(() => ({
   connect: vi.fn(),
   get: vi.fn(),
   setEx: vi.fn(),
   del: vi.fn(),
   on: vi.fn(),
-};
+}));
 
-// Spy on createClient once at module load time
-vi.spyOn(redis, 'createClient').mockReturnValue(mockRedisClient);
-
-// Require our module once at the top level
-const { cacheGet, cacheSet, cacheDel, getClient, resetClient } = require('../../../src/config/redis');
+// Mock the 'redis' module before any imports are evaluated
+vi.mock('redis', () => ({
+  createClient: vi.fn().mockReturnValue(mockRedisClient),
+}));
 
 describe('Redis Configuration & Cache Fallback Layer', () => {
   beforeEach(() => {

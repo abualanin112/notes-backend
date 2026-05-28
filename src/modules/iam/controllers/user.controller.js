@@ -1,10 +1,7 @@
-const httpStatus = require('http-status');
-const { pick } = require('../../shared');
-const { ApiError } = require('../../shared');
-const { catchAsync } = require('../../shared');
-const { userService, authorizationService } = require('../services');
-const { serializeUser } = require('../serializers/user.serializer');
-const { logger } = require('../../shared');
+import httpStatus from 'http-status';
+import { pick, ApiError, catchAsync, logger } from '../../shared/index.js';
+import { userService, authorizationService } from '../services/index.js';
+import { serializeUser } from '../user.serializer.js';
 
 const createUser = catchAsync(async (req, res, next) => {
   if (req.body.role !== undefined) {
@@ -60,10 +57,4 @@ const deleteUser = catchAsync(async (req, res, next) => {
   next();
 });
 
-module.exports = {
-  createUser,
-  getUsers,
-  getUser,
-  updateUser,
-  deleteUser,
-};
+export { createUser, getUsers, getUser, updateUser, deleteUser };

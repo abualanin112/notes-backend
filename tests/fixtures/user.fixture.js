@@ -1,6 +1,6 @@
-const bcrypt = require('bcryptjs');
-const faker = require('faker');
-const prisma = require('../../src/config/prisma');
+import bcrypt from 'bcryptjs';
+import { faker } from '@faker-js/faker';
+import { prisma } from '../../src/modules/infrastructure/index.js';
 
 const password = 'password1';
 const salt = bcrypt.genSaltSync(8);
@@ -22,7 +22,7 @@ const createCuid2 = () => {
 
 const userOne = {
   id: createCuid2(),
-  name: faker.name.findName(),
+  name: faker.person.fullName(),
   email: faker.internet.email().toLowerCase(),
   password,
   roleName: 'standard_user',
@@ -31,7 +31,7 @@ const userOne = {
 
 const userTwo = {
   id: createCuid2(),
-  name: faker.name.findName(),
+  name: faker.person.fullName(),
   email: faker.internet.email().toLowerCase(),
   password,
   roleName: 'standard_user',
@@ -40,7 +40,7 @@ const userTwo = {
 
 const admin = {
   id: createCuid2(),
-  name: faker.name.findName(),
+  name: faker.person.fullName(),
   email: faker.internet.email().toLowerCase(),
   password,
   roleName: 'super_admin',
@@ -130,9 +130,4 @@ const insertUsers = async (users) => {
   });
 };
 
-module.exports = {
-  userOne,
-  userTwo,
-  admin,
-  insertUsers,
-};
+export { userOne, userTwo, admin, insertUsers };

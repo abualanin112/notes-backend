@@ -1,6 +1,6 @@
-const request = require('supertest');
-const httpStatus = require('http-status');
-const app = require('../../src/app');
+import request from 'supertest';
+import httpStatus from 'http-status';
+import { app } from '../../src/app.js';
 
 describe('Request Pipeline Verification', () => {
   describe('Middleware Order & Error Handling', () => {

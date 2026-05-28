@@ -1,6 +1,6 @@
-const pino = require('pino');
-const config = require('./config');
-const asyncLocalStorage = require('./als');
+import pino from 'pino';
+import { config } from './config.js';
+import { als as asyncLocalStorage } from './als.js';
 
 /**
  * Pino Logger Configuration
@@ -13,7 +13,7 @@ if (config.env === 'test') {
   logLevel = 'debug';
 }
 
-const baseLogger = pino({
+export const baseLogger = pino({
   level: logLevel,
   formatters: {
     level: (label) => ({ level: label }), // Map standard text levels (e.g., 'info') instead of numeric values
@@ -51,8 +51,9 @@ const baseLogger = pino({
 /**
  * Contextual Logger Proxy
  * Intercepts logging calls and checks if there is a child logger in the ALS context.
- * If true (i.e. within an HTTP request), it automatically injects `reqId` and `userId`.
- * If false (i.e. background job), it falls back to the global `baseLogger`.
+ * If true (i.e. within an HTTP request), it automatically injects \
+eqId\ and \userId\.
+ * If false (i.e. background job), it falls back to the global \aseLogger\.
  */
 const logger = {
   info: (...args) => (asyncLocalStorage.getStore()?.logger || baseLogger).info(...args),
@@ -75,4 +76,4 @@ const logger = {
   },
 };
 
-module.exports = Object.assign(logger, { baseLogger });
+export { logger };

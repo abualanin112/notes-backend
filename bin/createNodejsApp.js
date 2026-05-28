@@ -11,7 +11,6 @@ const fs = require('fs');
 const { execSync } = require('child_process');
 
 const exec = util.promisify(require('child_process').exec);
-/* eslint-disable no-console */
 
 // ======================================
 // Configuration & Brand
@@ -39,7 +38,6 @@ const colors = {
 
 function log(color, text, isBright = false) {
   const prefix = isBright ? colors.bright : '';
-  // eslint-disable-next-line no-console
   console.log(`${prefix}${color}${text}${colors.reset}`);
 }
 
@@ -55,14 +53,14 @@ function printBanner() {
 async function checkPrerequisites() {
   try {
     execSync('git --version', { stdio: 'ignore' });
-  } catch (e) {
+  } catch (_e) {
     log(colors.red, '❌ Error: Git is not installed or available in your system path.', true);
     process.exit(1);
   }
 
   try {
     execSync('npm --version', { stdio: 'ignore' });
-  } catch (e) {
+  } catch (_e) {
     log(colors.red, '❌ Error: Node.js/npm is not installed or available in your system path.', true);
     process.exit(1);
   }
@@ -84,9 +82,7 @@ async function runCmd(command, customErrorMsg) {
 }
 
 function removeIfExists(targetPath) {
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
   if (fs.existsSync(targetPath)) {
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
     fs.rmSync(targetPath, { recursive: true, force: true });
   }
 }
@@ -131,7 +127,6 @@ async function setup() {
   printBanner();
 
   // 1. Verify and create project directory
-  // eslint-disable-next-line security/detect-non-literal-fs-filename
   if (fs.existsSync(appPath)) {
     log(colors.red, `❌ Directory "${folderName}" already exists.`, true);
     log(colors.yellow, '👉 Please choose another project folder name or delete the folder first.', false);
@@ -140,7 +135,6 @@ async function setup() {
   }
 
   try {
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
     fs.mkdirSync(appPath);
   } catch (error) {
     log(colors.red, `❌ Failed to create folder at path: ${appPath}`, true);
@@ -177,9 +171,7 @@ async function setup() {
     log(colors.cyan, '📝 Step 4: Configuring project environment files...', true);
     const envExamplePath = path.join(appPath, '.env.example');
     const envPath = path.join(appPath, '.env');
-    // eslint-disable-next-line security/detect-non-literal-fs-filename
     if (fs.existsSync(envExamplePath)) {
-      // eslint-disable-next-line security/detect-non-literal-fs-filename
       fs.copyFileSync(envExamplePath, envPath);
       log(colors.green, '✅ Generated local .env file.');
     } else {

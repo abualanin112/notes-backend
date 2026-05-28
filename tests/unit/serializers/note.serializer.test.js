@@ -1,4 +1,4 @@
-const { serializeNote, serializeNotes } = require('../../../src/serializers/note.serializer');
+import { serializeNote, serializeNotes } from '../../../src/modules/notes/note.serializer.js';
 
 describe('Note Serializer', () => {
   describe('serializeNote', () => {
