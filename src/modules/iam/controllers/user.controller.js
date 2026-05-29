@@ -1,5 +1,8 @@
 import httpStatus from 'http-status';
-import { pick, ApiError, catchAsync, logger } from '../../shared/index.js';
+import { pick } from '../../../shared/Pick.js';
+import { ApiError } from '../../../shared/ApiError.js';
+import { catchAsync } from '../../../shared/CatchAsync.js';
+import { logger } from '../../../infrastructure/logger.js';
 import { userService, authorizationService } from '../services/index.js';
 import { serializeUser } from '../user.serializer.js';
 

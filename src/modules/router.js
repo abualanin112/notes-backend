@@ -1,8 +1,9 @@
 import express from 'express';
 import { registerIamModule, userService } from './iam/index.js';
 import { registerNotesModule, deleteManyByOwnerId } from './notes/index.js';
-import { config, rateLimiter } from './shared/index.js';
-import { docsRoute } from './docs.route.js';
+import { config } from '../infrastructure/config.js';
+import * as rateLimiter from '../middleware/rate-limiter.middleware.js';
+import { docsRoute } from '../docs/docs.route.js';
 
 const router = express.Router();
 

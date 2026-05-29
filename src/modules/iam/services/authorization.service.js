@@ -1,8 +1,9 @@
 import httpStatus from 'http-status';
-import { ApiError, logger } from '../../shared/index.js';
+import { ApiError } from '../../../shared/ApiError.js';
+import { logger } from '../../../infrastructure/logger.js';
 import { hasPermission, getMaxRoleLevel, invalidateUserPermissionCache } from './permission.service.js';
 import { logEvent } from '../../audit/index.js';
-import { prisma } from '../../infrastructure/index.js';
+import { prisma } from '../../../infrastructure/prisma.js';
 
 // ──────────────────────────────────────────────────────────────
 // Scope-Aware Permission Helpers

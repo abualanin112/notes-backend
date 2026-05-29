@@ -50,11 +50,12 @@ export default [
         },
       },
       'boundaries/elements': [
-        { type: 'shared', pattern: 'src/modules/shared/**/*' },
+        { type: 'shared', pattern: 'src/shared/**/*' },
         { type: 'iam', pattern: 'src/modules/iam/**/*' },
         { type: 'notes', pattern: 'src/modules/notes/**/*' },
         { type: 'audit', pattern: 'src/modules/audit/**/*' },
-        { type: 'infrastructure', pattern: 'src/modules/infrastructure/**/*' },
+        { type: 'docs', pattern: 'src/docs/**/*' },
+        { type: 'infrastructure', pattern: 'src/infrastructure/**/*' },
         { type: 'app', pattern: 'src/*.js' },
       ],
     },
@@ -85,11 +86,11 @@ export default [
             },
             {
               from: { type: 'infrastructure' },
-              allow: { to: { type: ['shared', 'infrastructure'] } },
+              allow: { to: { type: ['shared', 'infrastructure', 'iam'] } },
             },
             {
               from: { type: 'app' },
-              allow: { to: { type: ['shared', 'iam', 'notes', 'infrastructure'] } },
+              allow: { to: { type: ['shared', 'iam', 'notes', 'infrastructure', 'docs'] } },
             },
           ],
         },
@@ -136,7 +137,7 @@ export default [
 
   // ─── 5. Test file overrides ───────────────────────────────────────────────────
   {
-    files: ['tests/**/*.js'],
+    files: ['tests/**/*.js', 'src/**/*.test.js'],
     // vitest.configs.recommended is a flat config object: { name, plugins: { vitest }, rules }
     // Spread it directly — this registers the plugin AND its recommended rules in one step
     ...vitest.configs.recommended,

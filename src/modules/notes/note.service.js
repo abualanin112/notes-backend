@@ -1,5 +1,6 @@
 import httpStatus from 'http-status';
-import { logger, ApiError } from '../shared/index.js';
+import { ApiError } from '../../shared/ApiError.js';
+import { logger } from '../../infrastructure/logger.js';
 import {
   create as createNoteRecord,
   paginateNotes as paginateNoteRecords,
@@ -8,7 +9,7 @@ import {
   deleteById as deleteNoteByIdRecord,
   deleteManyByOwnerId as deleteNotesByOwnerIdRecord,
 } from './note.repository.js';
-import { runInTransaction } from '../infrastructure/index.js';
+import { runInTransaction } from '../../infrastructure/prisma.js';
 // TODO: HIGH-RISK AUTHORIZATION COUPLING
 import { logEvent } from '../audit/index.js';
 

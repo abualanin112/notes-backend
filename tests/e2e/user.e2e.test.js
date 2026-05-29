@@ -1,0 +1,624 @@
+import request from 'supertest';
+import { faker } from '@faker-js/faker';
+import httpStatus from 'http-status';
+import { app } from '../../src/app.js';
+import setupTestDB from '../utils/setupTestDB.js';
+import { prisma } from '../../src/infrastructure/prisma.js';
+
+import { userOne, userTwo, admin, insertUsers } from '../fixtures/user.fixture.js';
+import { userOneAccessToken, adminAccessToken } from '../fixtures/token.fixture.js';
+
+setupTestDB();
+
+describe('User routes', () => {
+  describe('POST /v1/users', () => {
+    let newUser;
+
+    beforeEach(() => {
+      newUser = {
+        name: faker.person.fullName(),
+        email: faker.internet.email().toLowerCase(),
+        password: 'password1',
+      };
+    });
+
+    test('should return 201 and successfully create new user if data is ok', async () => {
+      await insertUsers([admin]);
+
+      const res = await request(app)
+        .post('/v1/users')
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .send(newUser)
+        .expect(httpStatus.CREATED);
+
+      expect(res.body.data).not.toHaveProperty('password');
+      expect(res.body.data).toMatchObject({
+        id: expect.any(String),
+        name: newUser.name,
+        email: newUser.email,
+        isEmailVerified: false,
+      });
+
+      const dbUser = await prisma.user.findUnique({ where: { id: res.body.data.id } });
+      expect(dbUser).toBeDefined();
+      expect(dbUser.password).not.toBe(newUser.password);
+      expect(dbUser).toMatchObject({ name: newUser.name, email: newUser.email, isEmailVerified: false });
+    });
+
+    test('should ignore legacy role field in request body and create user as standard user', async () => {
+      await insertUsers([admin]);
+      newUser.role = 'admin';
+
+      const res = await request(app)
+        .post('/v1/users')
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .send(newUser)
+        .expect(httpStatus.CREATED);
+
+      const dbUser = await prisma.user.findUnique({ where: { id: res.body.data.id } });
+      expect(dbUser.role).toBe('user');
+    });
+
+    test('should return 401 error if access token is missing', async () => {
+      await request(app).post('/v1/users').send(newUser).expect(httpStatus.UNAUTHORIZED);
+    });
+
+    test('should return 403 error if logged in user is not admin', async () => {
+      await insertUsers([userOne]);
+
+      await request(app)
+        .post('/v1/users')
+        .set('Authorization', `Bearer ${userOneAccessToken}`)
+        .send(newUser)
+        .expect(httpStatus.FORBIDDEN);
+    });
+
+    test('should return 400 error if email is invalid', async () => {
+      await insertUsers([admin]);
+      newUser.email = 'invalidEmail';
+
+      await request(app)
+        .post('/v1/users')
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .send(newUser)
+        .expect(httpStatus.BAD_REQUEST);
+    });
+
+    test('should return 400 error if email is already used', async () => {
+      await insertUsers([admin, userOne]);
+      newUser.email = userOne.email;
+
+      await request(app)
+        .post('/v1/users')
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .send(newUser)
+        .expect(httpStatus.BAD_REQUEST);
+    });
+
+    test('should return 400 error if password length is less than 8 characters', async () => {
+      await insertUsers([admin]);
+      newUser.password = 'passwo1';
+
+      await request(app)
+        .post('/v1/users')
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .send(newUser)
+        .expect(httpStatus.BAD_REQUEST);
+    });
+
+    test('should return 400 error if password does not contain both letters and numbers', async () => {
+      await insertUsers([admin]);
+      newUser.password = 'password';
+
+      await request(app)
+        .post('/v1/users')
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .send(newUser)
+        .expect(httpStatus.BAD_REQUEST);
+
+      newUser.password = '1111111';
+
+      await request(app)
+        .post('/v1/users')
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .send(newUser)
+        .expect(httpStatus.BAD_REQUEST);
+    });
+
+    test('should ignore role field even if it is not a valid enum value and create user as standard user', async () => {
+      await insertUsers([admin]);
+      newUser.role = 'invalid-role-value-that-is-not-user-or-admin';
+
+      const res = await request(app)
+        .post('/v1/users')
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .send(newUser)
+        .expect(httpStatus.CREATED);
+
+      expect(res.body.data).toBeDefined();
+      expect(res.body.data.email).toBe(newUser.email.toLowerCase());
+    });
+  });
+
+  describe('GET /v1/users', () => {
+    test('should return 200 and apply the default query options', async () => {
+      await insertUsers([userOne, userTwo, admin]);
+
+      const res = await request(app)
+        .get('/v1/users')
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .send()
+        .expect(httpStatus.OK);
+
+      expect(res.body.data).toEqual({
+        results: expect.any(Array),
+        page: 1,
+        limit: 10,
+        totalPages: 1,
+        totalResults: 3,
+      });
+      expect(res.body.data.results).toHaveLength(3);
+      expect(res.body.data.results[0]).toMatchObject({
+        id: userOne.id,
+        name: userOne.name,
+        email: userOne.email,
+        isEmailVerified: userOne.isEmailVerified,
+      });
+    });
+
+    test('should return 401 if access token is missing', async () => {
+      await insertUsers([userOne, userTwo, admin]);
+
+      await request(app).get('/v1/users').send().expect(httpStatus.UNAUTHORIZED);
+    });
+
+    test('should return 403 if a non-admin is trying to access all users', async () => {
+      await insertUsers([userOne, userTwo, admin]);
+
+      await request(app)
+        .get('/v1/users')
+        .set('Authorization', `Bearer ${userOneAccessToken}`)
+        .send()
+        .expect(httpStatus.FORBIDDEN);
+    });
+
+    test('should correctly apply filter on name field', async () => {
+      await insertUsers([userOne, userTwo, admin]);
+
+      const res = await request(app)
+        .get('/v1/users')
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .query({ name: userOne.name })
+        .send()
+        .expect(httpStatus.OK);
+
+      expect(res.body.data).toEqual({
+        results: expect.any(Array),
+        page: 1,
+        limit: 10,
+        totalPages: 1,
+        totalResults: 1,
+      });
+      expect(res.body.data.results).toHaveLength(1);
+      expect(res.body.data.results[0].id).toBe(userOne.id);
+    });
+
+    test('should correctly apply filter on role field', async () => {
+      await insertUsers([userOne, userTwo, admin]);
+
+      const res = await request(app)
+        .get('/v1/users')
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .query({ role: 'user' })
+        .send()
+        .expect(httpStatus.OK);
+
+      expect(res.body.data).toEqual({
+        results: expect.any(Array),
+        page: 1,
+        limit: 10,
+        totalPages: 1,
+        totalResults: 2,
+      });
+      expect(res.body.data.results).toHaveLength(2);
+      expect(res.body.data.results[0].id).toBe(userOne.id);
+      expect(res.body.data.results[1].id).toBe(userTwo.id);
+    });
+
+    test('should correctly sort the returned array if descending sort param is specified', async () => {
+      await insertUsers([userOne, userTwo, admin]);
+
+      const res = await request(app)
+        .get('/v1/users')
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .query({ sortBy: 'role:desc,createdAt:desc' })
+        .send()
+        .expect(httpStatus.OK);
+
+      expect(res.body.data).toEqual({
+        results: expect.any(Array),
+        page: 1,
+        limit: 10,
+        totalPages: 1,
+        totalResults: 3,
+      });
+      expect(res.body.data.results).toHaveLength(3);
+      // PostgreSQL enums sort by declaration ordinal, NOT alphabetically.
+      // Enum Role { user, moderator, admin } => user=0, moderator=1, admin=2
+      // role:desc => admin(2) first, then user(0) roles by createdAt:desc
+      expect(res.body.data.results[0].id).toBe(admin.id);
+      expect(res.body.data.results[1].id).toBe(userOne.id);
+      expect(res.body.data.results[2].id).toBe(userTwo.id);
+    });
+
+    test('should correctly sort the returned array if ascending sort param is specified', async () => {
+      await insertUsers([userOne, userTwo, admin]);
+
+      const res = await request(app)
+        .get('/v1/users')
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .query({ sortBy: 'role:asc,createdAt:desc' })
+        .send()
+        .expect(httpStatus.OK);
+
+      expect(res.body.data).toEqual({
+        results: expect.any(Array),
+        page: 1,
+        limit: 10,
+        totalPages: 1,
+        totalResults: 3,
+      });
+      expect(res.body.data.results).toHaveLength(3);
+      // role:asc => user(0) roles first by createdAt:desc, then admin(2) last
+      expect(res.body.data.results[0].id).toBe(userOne.id);
+      expect(res.body.data.results[1].id).toBe(userTwo.id);
+      expect(res.body.data.results[2].id).toBe(admin.id);
+    });
+
+    test('should correctly sort the returned array if multiple sorting criteria are specified', async () => {
+      userOne.name = 'alice';
+      userTwo.name = 'bob';
+      admin.name = 'charlie';
+      await insertUsers([userOne, userTwo, admin]);
+
+      const res = await request(app)
+        .get('/v1/users')
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .query({ sortBy: 'role:desc,name:asc' })
+        .send()
+        .expect(httpStatus.OK);
+
+      expect(res.body.data).toEqual({
+        results: expect.any(Array),
+        page: 1,
+        limit: 10,
+        totalPages: 1,
+        totalResults: 3,
+      });
+      expect(res.body.data.results).toHaveLength(3);
+
+      // PostgreSQL enum ordinal: user=0 < moderator=1 < admin=2
+      // role:desc => admin(charlie) first, then user roles sorted by name:asc (alice, bob)
+      const expectedOrder = [admin, userOne, userTwo];
+
+      expectedOrder.forEach((user, index) => {
+        // eslint-disable-next-line security/detect-object-injection
+        expect(res.body.data.results[index].id).toBe(user.id);
+      });
+    });
+
+    test('should limit returned array if limit param is specified', async () => {
+      await insertUsers([userOne, userTwo, admin]);
+
+      const res = await request(app)
+        .get('/v1/users')
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .query({ limit: 2 })
+        .send()
+        .expect(httpStatus.OK);
+
+      expect(res.body.data).toEqual({
+        results: expect.any(Array),
+        page: 1,
+        limit: 2,
+        totalPages: 2,
+        totalResults: 3,
+      });
+      expect(res.body.data.results).toHaveLength(2);
+      expect(res.body.data.results[0].id).toBe(userOne.id);
+      expect(res.body.data.results[1].id).toBe(userTwo.id);
+    });
+
+    test('should return the correct page if page and limit params are specified', async () => {
+      await insertUsers([userOne, userTwo, admin]);
+
+      const res = await request(app)
+        .get('/v1/users')
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .query({ page: 2, limit: 2 })
+        .send()
+        .expect(httpStatus.OK);
+
+      expect(res.body.data).toEqual({
+        results: expect.any(Array),
+        page: 2,
+        limit: 2,
+        totalPages: 2,
+        totalResults: 3,
+      });
+      expect(res.body.data.results).toHaveLength(1);
+      expect(res.body.data.results[0].id).toBe(admin.id);
+    });
+  });
+
+  describe('GET /v1/users/:userId', () => {
+    test('should return 200 and the user object if data is ok', async () => {
+      await insertUsers([userOne]);
+
+      const res = await request(app)
+        .get(`/v1/users/${userOne.id}`)
+        .set('Authorization', `Bearer ${userOneAccessToken}`)
+        .send()
+        .expect(httpStatus.OK);
+
+      expect(res.body.data).not.toHaveProperty('password');
+      expect(res.body.data).toMatchObject({
+        id: userOne.id,
+        email: userOne.email,
+        name: userOne.name,
+        isEmailVerified: userOne.isEmailVerified,
+      });
+    });
+
+    test('should return 401 error if access token is missing', async () => {
+      await insertUsers([userOne]);
+
+      await request(app).get(`/v1/users/${userOne.id}`).send().expect(httpStatus.UNAUTHORIZED);
+    });
+
+    test('should return 403 error if user is trying to get another user', async () => {
+      await insertUsers([userOne, userTwo]);
+
+      await request(app)
+        .get(`/v1/users/${userTwo.id}`)
+        .set('Authorization', `Bearer ${userOneAccessToken}`)
+        .send()
+        .expect(httpStatus.FORBIDDEN);
+    });
+
+    test('should return 200 and the user object if admin is trying to get another user', async () => {
+      await insertUsers([userOne, admin]);
+
+      await request(app)
+        .get(`/v1/users/${userOne.id}`)
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .send()
+        .expect(httpStatus.OK);
+    });
+
+    test('should return 400 error if userId is not a valid CUID2 identifier', async () => {
+      await insertUsers([admin]);
+
+      await request(app)
+        .get('/v1/users/invalidId')
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .send()
+        .expect(httpStatus.BAD_REQUEST);
+    });
+
+    test('should return 404 error if user is not found', async () => {
+      await insertUsers([admin]);
+
+      await request(app)
+        .get(`/v1/users/${userOne.id}`)
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .send()
+        .expect(httpStatus.NOT_FOUND);
+    });
+  });
+
+  describe('DELETE /v1/users/:userId', () => {
+    test('should return 204 if data is ok', async () => {
+      await insertUsers([userOne]);
+
+      await request(app)
+        .delete(`/v1/users/${userOne.id}`)
+        .set('Authorization', `Bearer ${userOneAccessToken}`)
+        .send()
+        .expect(httpStatus.NO_CONTENT);
+
+      const dbUser = await prisma.user.findUnique({ where: { id: userOne.id } });
+      expect(dbUser).toBeNull();
+    });
+
+    test('should return 401 error if access token is missing', async () => {
+      await insertUsers([userOne]);
+
+      await request(app).delete(`/v1/users/${userOne.id}`).send().expect(httpStatus.UNAUTHORIZED);
+    });
+
+    test('should return 403 error if user is trying to delete another user', async () => {
+      await insertUsers([userOne, userTwo]);
+
+      await request(app)
+        .delete(`/v1/users/${userTwo.id}`)
+        .set('Authorization', `Bearer ${userOneAccessToken}`)
+        .send()
+        .expect(httpStatus.FORBIDDEN);
+    });
+
+    test('should return 204 if admin is trying to delete another user', async () => {
+      await insertUsers([userOne, admin]);
+
+      await request(app)
+        .delete(`/v1/users/${userOne.id}`)
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .send()
+        .expect(httpStatus.NO_CONTENT);
+    });
+
+    test('should return 400 error if userId is not a valid CUID2 identifier', async () => {
+      await insertUsers([admin]);
+
+      await request(app)
+        .delete('/v1/users/invalidId')
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .send()
+        .expect(httpStatus.BAD_REQUEST);
+    });
+
+    test('should return 404 error if user already is not found', async () => {
+      await insertUsers([admin]);
+
+      await request(app)
+        .delete(`/v1/users/${userOne.id}`)
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .send()
+        .expect(httpStatus.NOT_FOUND);
+    });
+  });
+
+  describe('PATCH /v1/users/:userId', () => {
+    test('should return 200 and successfully update user if data is ok', async () => {
+      await insertUsers([userOne]);
+      const updateBody = {
+        name: faker.person.fullName(),
+        email: faker.internet.email().toLowerCase(),
+        password: 'newPassword1',
+      };
+
+      const res = await request(app)
+        .patch(`/v1/users/${userOne.id}`)
+        .set('Authorization', `Bearer ${userOneAccessToken}`)
+        .send(updateBody)
+        .expect(httpStatus.OK);
+
+      expect(res.body.data).not.toHaveProperty('password');
+      expect(res.body.data).toMatchObject({
+        id: userOne.id,
+        name: updateBody.name,
+        email: updateBody.email,
+        isEmailVerified: false,
+      });
+
+      const dbUser = await prisma.user.findUnique({ where: { id: userOne.id } });
+      expect(dbUser).toBeDefined();
+      expect(dbUser.password).not.toBe(updateBody.password);
+      expect(dbUser).toMatchObject({ name: updateBody.name, email: updateBody.email, role: 'user' });
+    });
+
+    test('should return 401 error if access token is missing', async () => {
+      await insertUsers([userOne]);
+      const updateBody = { name: faker.person.fullName() };
+
+      await request(app).patch(`/v1/users/${userOne.id}`).send(updateBody).expect(httpStatus.UNAUTHORIZED);
+    });
+
+    test('should return 403 if user is updating another user', async () => {
+      await insertUsers([userOne, userTwo]);
+      const updateBody = { name: faker.person.fullName() };
+
+      await request(app)
+        .patch(`/v1/users/${userTwo.id}`)
+        .set('Authorization', `Bearer ${userOneAccessToken}`)
+        .send(updateBody)
+        .expect(httpStatus.FORBIDDEN);
+    });
+
+    test('should return 200 and successfully update user if admin is updating another user', async () => {
+      await insertUsers([userOne, admin]);
+      const updateBody = { name: faker.person.fullName() };
+
+      await request(app)
+        .patch(`/v1/users/${userOne.id}`)
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .send(updateBody)
+        .expect(httpStatus.OK);
+    });
+
+    test('should return 404 if admin is updating another user that is not found', async () => {
+      await insertUsers([admin]);
+      const updateBody = { name: faker.person.fullName() };
+
+      await request(app)
+        .patch(`/v1/users/${userOne.id}`)
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .send(updateBody)
+        .expect(httpStatus.NOT_FOUND);
+    });
+
+    test('should return 400 error if userId is not a valid CUID2 identifier', async () => {
+      await insertUsers([admin]);
+      const updateBody = { name: faker.person.fullName() };
+
+      await request(app)
+        .patch(`/v1/users/invalidId`)
+        .set('Authorization', `Bearer ${adminAccessToken}`)
+        .send(updateBody)
+        .expect(httpStatus.BAD_REQUEST);
+    });
+
+    test('should return 400 if email is invalid', async () => {
+      await insertUsers([userOne]);
+      const updateBody = { email: 'invalidEmail' };
+
+      await request(app)
+        .patch(`/v1/users/${userOne.id}`)
+        .set('Authorization', `Bearer ${userOneAccessToken}`)
+        .send(updateBody)
+        .expect(httpStatus.BAD_REQUEST);
+    });
+
+    test('should return 400 if email is already taken', async () => {
+      await insertUsers([userOne, userTwo]);
+      const updateBody = { email: userTwo.email };
+
+      await request(app)
+        .patch(`/v1/users/${userOne.id}`)
+        .set('Authorization', `Bearer ${userOneAccessToken}`)
+        .send(updateBody)
+        .expect(httpStatus.BAD_REQUEST);
+    });
+
+    test('should not return 400 if email is my email', async () => {
+      await insertUsers([userOne]);
+      const updateBody = { email: userOne.email };
+
+      await request(app)
+        .patch(`/v1/users/${userOne.id}`)
+        .set('Authorization', `Bearer ${userOneAccessToken}`)
+        .send(updateBody)
+        .expect(httpStatus.OK);
+    });
+
+    test('should return 400 if password length is less than 8 characters', async () => {
+      await insertUsers([userOne]);
+      const updateBody = { password: 'passwo1' };
+
+      await request(app)
+        .patch(`/v1/users/${userOne.id}`)
+        .set('Authorization', `Bearer ${userOneAccessToken}`)
+        .send(updateBody)
+        .expect(httpStatus.BAD_REQUEST);
+    });
+
+    test('should return 400 if password does not contain both letters and numbers', async () => {
+      await insertUsers([userOne]);
+      const updateBody = { password: 'password' };
+
+      await request(app)
+        .patch(`/v1/users/${userOne.id}`)
+        .set('Authorization', `Bearer ${userOneAccessToken}`)
+        .send(updateBody)
+        .expect(httpStatus.BAD_REQUEST);
+
+      updateBody.password = '11111111';
+
+      await request(app)
+        .patch(`/v1/users/${userOne.id}`)
+        .set('Authorization', `Bearer ${userOneAccessToken}`)
+        .send(updateBody)
+        .expect(httpStatus.BAD_REQUEST);
+    });
+  });
+});

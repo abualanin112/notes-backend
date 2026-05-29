@@ -4,18 +4,17 @@ import compression from 'compression';
 import cors from 'cors';
 import passport from 'passport';
 import httpStatus from 'http-status';
-import {
-  config,
-  pinoHttp,
-  als as asyncLocalStorage,
-  ApiError,
-  rateLimiter,
-  error,
-  responseInterceptor,
-} from './modules/shared/index.js';
+import { config } from './infrastructure/config.js';
+import { als as asyncLocalStorage } from './infrastructure/als.js';
+import { ApiError } from './shared/ApiError.js';
+import { pinoHttp } from './middleware/pino-http.middleware.js';
+import * as rateLimiter from './middleware/rate-limiter.middleware.js';
+import * as error from './middleware/error.middleware.js';
+import * as responseInterceptor from './middleware/response-interceptor.middleware.js';
 import { v1Router } from './modules/router.js';
-import { jwtStrategy } from './modules/iam/passport.js';
-import { prisma, isRedisDegraded } from './modules/infrastructure/index.js';
+import { jwtStrategy } from './infrastructure/passport.js';
+import { prisma } from './infrastructure/prisma.js';
+import { isRedisDegraded } from './infrastructure/redis.js';
 
 const { apiLimiter } = rateLimiter;
 const { errorConverter, errorHandler } = error;

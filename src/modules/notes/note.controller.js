@@ -1,5 +1,6 @@
 import httpStatus from 'http-status';
-import { ApiError, catchAsync } from '../shared/index.js';
+import { ApiError } from '../../shared/ApiError.js';
+import { catchAsync } from '../../shared/CatchAsync.js';
 import { createNote as createNoteService, queryNotes, getNoteById, updateNoteById, deleteNoteById } from './note.service.js';
 import { serializeNote } from './note.serializer.js';
 

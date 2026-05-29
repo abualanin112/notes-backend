@@ -1,7 +1,8 @@
 import express from 'express';
-import { auth } from '../auth.middleware.js';
-import { validate, rateLimiter } from '../../shared/index.js';
-import * as authValidation from '../validations/auth.validation.js';
+import { auth } from '../../../middleware/auth.middleware.js';
+import { validate } from '../../../middleware/validate.middleware.js';
+import * as rateLimiter from '../../../middleware/rate-limiter.middleware.js';
+import * as authValidation from '../validators/auth.validator.js';
 import * as authController from '../controllers/auth.controller.js';
 
 const { refreshLimiter } = rateLimiter;

@@ -1,5 +1,5 @@
 import httpStatus from 'http-status';
-import { catchAsync } from '../../shared/index.js';
+import { catchAsync } from '../../../shared/CatchAsync.js';
 import { authService, userService, tokenService, emailService } from '../services/index.js';
 import { serializeUser } from '../user.serializer.js';
 

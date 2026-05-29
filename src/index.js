@@ -1,9 +1,12 @@
 /* eslint-disable n/no-process-exit */
 import { monitorEventLoopDelay } from 'perf_hooks';
 import { app } from './app.js';
-import { config, logger, startMetricsFlusher } from './modules/shared/index.js';
-import { prisma, getRedisClient, disconnectRedis } from './modules/infrastructure/index.js';
-import { startTokenCleanupJob } from './modules/iam/tokenCleanup.worker.js';
+import { config } from './infrastructure/config.js';
+import { startMetricsFlusher } from './infrastructure/metrics.js';
+import { logger } from './infrastructure/logger.js';
+import { prisma } from './infrastructure/prisma.js';
+import { getRedisClient, disconnectRedis } from './infrastructure/redis.js';
+import { startTokenCleanupJob } from './infrastructure/workers/token-cleanup.worker.js';
 
 let server;
 

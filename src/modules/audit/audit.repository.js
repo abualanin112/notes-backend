@@ -1,4 +1,4 @@
-import { prisma } from '../infrastructure/index.js';
+import { prisma } from '../../infrastructure/prisma.js';
 
 /**
  * Create a new audit log

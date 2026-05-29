@@ -1,5 +1,5 @@
-import { prisma } from '../infrastructure/index.js';
-import { paginateCursor as paginateWithCursor } from '../shared/index.js';
+import { prisma } from '../../infrastructure/prisma.js';
+import { paginateCursor } from '../../shared/PaginateCursor.js';
 
 /**
  * Strict, non-bypassable nested relational whitelist
@@ -141,7 +141,7 @@ const paginateNotes = async (filter, options, tx = prisma) => {
     include = cleanNoteIncludes;
   }
 
-  return paginateWithCursor(tx.note, {
+  return paginateCursor(tx.note, {
     where,
     limit,
     cursor,

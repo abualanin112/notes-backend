@@ -8,12 +8,12 @@ import {
   updateById as updateTokenById,
   deleteMany as deleteManyTokens,
 } from '../repositories/token.repository.js';
-import { runInTransaction } from '../../infrastructure/index.js';
-import { ApiError, tokens, password as passwordUtils, logger } from '../../shared/index.js';
+import { runInTransaction } from '../../../infrastructure/prisma.js';
+import { ApiError } from '../../../shared/ApiError.js';
+import { tokenTypes } from '../../../shared/Tokens.js';
+import { hashPassword, comparePassword } from '../../../shared/Password.js';
+import { logger } from '../../../infrastructure/logger.js';
 import { logEvent } from '../../audit/index.js';
-
-const { tokenTypes } = tokens;
-const { comparePassword, hashPassword } = passwordUtils;
 
 /**
  * Login with username and password

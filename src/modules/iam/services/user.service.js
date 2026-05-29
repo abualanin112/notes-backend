@@ -8,12 +8,12 @@ import {
   updateById as updateUserByIdRecord,
   deleteById as deleteUserByIdRecord,
 } from '../repositories/user.repository.js';
-import { runInTransaction } from '../../infrastructure/index.js';
+import { runInTransaction } from '../../../infrastructure/prisma.js';
 // TODO: HIGH-RISK AUTHORIZATION COUPLING
-import { ApiError, password, logger } from '../../shared/index.js';
+import { ApiError } from '../../../shared/ApiError.js';
+import { hashPassword } from '../../../shared/Password.js';
+import { logger } from '../../../infrastructure/logger.js';
 import { logEvent } from '../../audit/index.js';
-
-const { hashPassword } = password;
 
 const userDeletionHooks = [];
 const registerUserDeletionHook = (hook) => userDeletionHooks.push(hook);

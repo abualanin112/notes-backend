@@ -1,4 +1,4 @@
-import { prisma } from '../../infrastructure/index.js';
+import { prisma } from '../../../infrastructure/prisma.js';
 
 /**
  * Repository layer for Token entity using Prisma Client

@@ -8,8 +8,6 @@ export * as tokenService from './services/token.service.js';
 export * as userService from './services/user.service.js';
 export * as emailService from './services/email.service.js';
 
-export { auth as authMiddleware } from './auth.middleware.js';
-export * from './passport.js';
 /**
  * Register IAM Module Routes
  * @param {import('express').Router} router

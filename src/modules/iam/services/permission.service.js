@@ -1,5 +1,6 @@
-import { prisma, cacheGet, cacheSet, cacheDel, cacheIncr } from '../../infrastructure/index.js';
-import { logger } from '../../shared/index.js';
+import { prisma } from '../../../infrastructure/prisma.js';
+import { cacheGet, cacheSet, cacheDel, cacheIncr } from '../../../infrastructure/redis.js';
+import { logger } from '../../../infrastructure/logger.js';
 
 // ──────────────────────────────────────────────────────────────
 // Constants

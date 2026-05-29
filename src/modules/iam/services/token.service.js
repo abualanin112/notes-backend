@@ -4,9 +4,9 @@ import crypto from 'crypto';
 import httpStatus from 'http-status';
 import { getUserByEmail } from './user.service.js';
 import { create as createTokenRecord, findOne as findTokenRecord } from '../repositories/token.repository.js';
-import { ApiError, tokens, config } from '../../shared/index.js';
-
-const { tokenTypes } = tokens;
+import { ApiError } from '../../../shared/ApiError.js';
+import { tokenTypes } from '../../../shared/Tokens.js';
+import { config } from '../../../infrastructure/config.js';
 
 /**
  * Generate token

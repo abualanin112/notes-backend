@@ -1,5 +1,5 @@
-import { prisma } from '../../infrastructure/index.js';
-import { paginate } from '../../shared/index.js';
+import { prisma } from '../../../infrastructure/prisma.js';
+import { paginate } from '../../../shared/Paginate.js';
 
 /**
  * Repository layer for User entity using Prisma Client

@@ -1,5 +1,5 @@
 import { faker } from '@faker-js/faker';
-import { prisma } from '../../src/modules/infrastructure/index.js';
+import { prisma } from '../../src/infrastructure/prisma.js';
 import { userOne, userTwo } from './user.fixture.js';
 
 /**

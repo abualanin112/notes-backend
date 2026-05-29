@@ -1,4 +1,5 @@
-import { logger, als as asyncLocalStorage } from '../shared/index.js';
+import { als as asyncLocalStorage } from '../../infrastructure/als.js';
+import { logger } from '../../infrastructure/logger.js';
 import { create } from './audit.repository.js';
 
 const MAX_SERIALIZATION_DEPTH = 3;
